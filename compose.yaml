@@ -64,7 +64,7 @@ services:
       - --web.enable-otlp-receiver
       - --enable-feature=exemplar-storage
     volumes:
-      - ./platform/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./platform/prometheus:/etc/prometheus:ro
       - promdata:/prometheus
     ports:
       - "127.0.0.1:9090:9090"

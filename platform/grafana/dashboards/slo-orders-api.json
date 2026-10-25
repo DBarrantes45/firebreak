@@ -1,0 +1,336 @@
+{
+  "uid": "slo-orders-api",
+  "title": "orders-api — SLOs and error budget",
+  "description": "Built on the recording rules Sloth generates from slos/orders-api.yml.",
+  "tags": [
+    "firebreak",
+    "orders-api",
+    "slo"
+  ],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "schemaVersion": 39,
+  "templating": {
+    "list": [
+      {
+        "name": "slo",
+        "label": "SLO",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": {
+          "query": "label_values(slo:objective:ratio{sloth_service=\"orders-api\"}, sloth_slo)",
+          "refId": "slo"
+        },
+        "refresh": 1,
+        "sort": 1,
+        "current": {
+          "text": "requests-availability",
+          "value": "requests-availability"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "Error budget left (30 days)",
+      "description": "Share of the 30-day error budget not spent yet. Below zero means the SLO is broken for this period.",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": -0.5,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo:period_error_budget_remaining:ratio{sloth_service=\"orders-api\", sloth_slo=\"$slo\"}",
+          "legendFormat": "budget left"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Achieved vs objective (30 days)",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "1 - slo:sli_error:ratio_rate30d{sloth_service=\"orders-api\", sloth_slo=\"$slo\"}",
+          "legendFormat": "achieved"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo:objective:ratio{sloth_service=\"orders-api\", sloth_slo=\"$slo\"}",
+          "legendFormat": "objective"
+        }
+      ],
+      "description": "Over the last 30 days. Built from the recorded 5-minute ratio, so it reads 100% until enough history has piled up."
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Burn rate (1 = spending the budget exactly in 30 days)",
+      "description": "How fast the budget is being spent right now. The lines at 6 and 14.4 are the page thresholds.",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "orange",
+                "value": 6
+              },
+              {
+                "color": "red",
+                "value": 14.4
+              }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "softMax": 20
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo:current_burn_rate:ratio{sloth_service=\"orders-api\", sloth_slo=\"$slo\"}",
+          "legendFormat": "burn rate"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Error ratio by window vs error budget",
+      "description": "Short windows react fast, long windows confirm. Alerts need both above the threshold.",
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 16,
+        "h": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo:sli_error:ratio_rate5m{sloth_service=\"orders-api\", sloth_slo=\"$slo\"}",
+          "legendFormat": "5m"
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo:sli_error:ratio_rate1h{sloth_service=\"orders-api\", sloth_slo=\"$slo\"}",
+          "legendFormat": "1h"
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo:sli_error:ratio_rate6h{sloth_service=\"orders-api\", sloth_slo=\"$slo\"}",
+          "legendFormat": "6h"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo:error_budget:ratio{sloth_service=\"orders-api\", sloth_slo=\"$slo\"}",
+          "legendFormat": "error budget (1 - objective)"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Firing SLO alerts (all SLOs)",
+      "gridPos": {
+        "x": 16,
+        "y": 7,
+        "w": 8,
+        "h": 9
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "ALERTS{sloth_service=\"orders-api\", alertstate=\"firing\"}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true,
+              "__name__": true,
+              "alertstate": true,
+              "category": true,
+              "owner": true,
+              "repo": true,
+              "sloth_id": true,
+              "sloth_service": true,
+              "severity": true
+            },
+            "renameByName": {
+              "alertname": "Alert",
+              "sloth_slo": "SLO",
+              "sloth_severity": "Severity"
+            },
+            "indexByName": {
+              "sloth_slo": 0,
+              "sloth_severity": 1,
+              "alertname": 2
+            }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Alert"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 230
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
