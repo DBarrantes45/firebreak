@@ -1,0 +1,98 @@
+# Architecture
+
+Firebreak is two things living in one repo.
+
+The **platform** (`platform/`) is the part meant to last: the observability
+stack today, alerting and incident automation later. The plan is for it to
+end up watching the services in a homelab.
+
+The **test bed** (`app/`) is `orders-api`, a deliberately small service that
+can be told to misbehave. It exists for one reason: to prove the platform
+notices when something breaks.
+
+## The pieces
+
+```mermaid
+flowchart LR
+    subgraph app["Test bed"]
+        API["orders-api<br/>FastAPI"]
+        DB[("PostgreSQL")]
+        API --> DB
+    end
+    subgraph platform["Platform"]
+        COL["OpenTelemetry<br/>Collector"]
+        PROM["Prometheus"]
+        LOKI["Loki"]
+        TEMPO["Tempo"]
+        GRAF["Grafana"]
+    end
+    API -- "OTLP: traces, logs, metrics" --> COL
+    PROM -- "scrape /metrics" --> API
+    COL --> TEMPO
+    COL --> LOKI
+    COL --> PROM
+    GRAF --> PROM
+    GRAF --> LOKI
+    GRAF --> TEMPO
+```
+
+The app speaks one protocol, OTLP, to one place, the Collector. The Collector
+decides where each signal goes. Swapping Tempo for something else, or adding
+a second backend, is a YAML change rather than a code change.
+
+## How each signal travels
+
+Metrics take two roads on purpose. The app exposes its own request counters
+and latency histogram at `/metrics`, and Prometheus scrapes them every 15
+seconds. These are the numbers the SLOs will be built on, because scraping
+gives you `up` for free: if the app dies, Prometheus knows. The OpenTelemetry
+SDK also pushes its standard HTTP metrics through the Collector. Those carry
+exemplars, which is what lets a dashboard link straight to a trace.
+
+Traces come from OpenTelemetry's automatic instrumentation of FastAPI and
+psycopg, plus a manual span around taking a connection from the pool. Logs
+are plain Python `logging`, written as JSON to stdout and shipped to Loki
+over OTLP at the same time.
+
+## One id to tie it all together
+
+Every request gets a `trace_id`, and it shows up everywhere: on metric
+exemplars, on every span, on every log line.
+
+```mermaid
+flowchart LR
+    M["Metric point<br/>(exemplar)"] -- trace_id --> T["Trace<br/>in Tempo"]
+    T -- "logs for this span" --> L["Log lines<br/>in Loki"]
+    L -- "trace_id field" --> T
+```
+
+In Loki it is stored as structured metadata, not as a label. A label with one
+value per request would create millions of tiny streams and grind the index
+to a halt.
+
+## Life of a request
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant M as metrics middleware
+    participant X as chaos middleware
+    participant E as endpoint
+    participant P as connection pool
+    participant D as PostgreSQL
+    C->>M: GET /products
+    M->>X: start the timer
+    X->>X: maybe sleep, fail or leak
+    X->>E: call the endpoint
+    E->>P: borrow a connection
+    P-->>E: an open connection
+    E->>D: SELECT
+    D-->>E: rows
+    E-->>X: 200
+    X-->>M: 200
+    M-->>C: 200, counter and histogram updated
+```
+
+The metrics middleware sits on the outside so it also counts the failures
+the chaos middleware injects. Put it on the inside and the dashboards would
+report a healthy service while it was falling over.

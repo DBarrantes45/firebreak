@@ -1,15 +1,68 @@
 import asyncio
+import json
+import logging
 import os
 import random
+import sys
 import time
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
+from opentelemetry import trace
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from psycopg_pool import ConnectionPool, PoolTimeout
 from pydantic import BaseModel
 from starlette.routing import Match
+
+tracer = trace.get_tracer("orders-api")
+
+# ---------------------------------------------------------------------------
+# Logging: JSON lines on stdout with the trace_id of the current request.
+# opentelemetry-instrument also ships every record to Loki over OTLP.
+
+# Only these extra fields reach the logs, so personal data can't leak by accident.
+LOG_EXTRA_FIELDS = [
+    "order_id",
+    "product_id",
+    "quantity",
+    "path",
+    "error_rate",
+    "latency_ms",
+    "latency_rate",
+    "leak_mb_per_request",
+]
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_line = {
+            "time": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
+            "level": record.levelname.lower(),
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+
+        for field in LOG_EXTRA_FIELDS:
+            if hasattr(record, field):
+                log_line[field] = getattr(record, field)
+
+        span_context = trace.get_current_span().get_span_context()
+        if span_context.is_valid:
+            # The SDK stores the ids as integers; Tempo expects hex text.
+            log_line["trace_id"] = trace.format_trace_id(span_context.trace_id)
+            log_line["span_id"] = trace.format_span_id(span_context.span_id)
+
+        return json.dumps(log_line)
+
+
+logger = logging.getLogger("orders-api")
+logger.setLevel(logging.INFO)
+stdout_handler = logging.StreamHandler(sys.stdout)
+stdout_handler.setFormatter(JsonFormatter())
+logger.addHandler(stdout_handler)
 
 # ---------------------------------------------------------------------------
 # Database
@@ -35,34 +88,41 @@ INSERT INTO products (name, price) VALUES
 ON CONFLICT (name) DO NOTHING;
 """
 
+# Opening a connection costs ~4 ms (measured in a trace); the query ~0.1 ms.
+# The pool keeps connections open and lends them out. Created at startup.
+pool = None
 
-def open_connection():
-    """Open a new connection to Postgres using the environment variables."""
-    host = os.getenv("POSTGRES_HOST", "localhost")
-    database = os.environ["POSTGRES_DB"]
-    user = os.environ["POSTGRES_USER"]
-    password = os.environ["POSTGRES_PASSWORD"]
 
-    connection = psycopg.connect(
-        host=host,
-        dbname=database,
-        user=user,
-        password=password,
-        # Give up after 2 seconds instead of waiting forever.
-        # A health probe or a request must never hang on a dead database.
+def create_pool():
+    conninfo = psycopg.conninfo.make_conninfo(
+        host=os.getenv("POSTGRES_HOST", "localhost"),
+        dbname=os.environ["POSTGRES_DB"],
+        user=os.environ["POSTGRES_USER"],
+        password=os.environ["POSTGRES_PASSWORD"],
         connect_timeout=2,
     )
-    return connection
+    return ConnectionPool(
+        conninfo,
+        min_size=2,
+        max_size=10,
+        # Each statement commits on its own: no transaction left open.
+        kwargs={"autocommit": True},
+        # Test a connection before lending it, so a database restart
+        # doesn't hand out dead connections.
+        check=ConnectionPool.check_connection,
+        open=False,
+    )
 
 
-def create_tables():
-    """Run CREATE_TABLES_SQL once, when the app starts."""
-    connection = open_connection()
-    try:
-        connection.execute(CREATE_TABLES_SQL)
-        connection.commit()
-    finally:
-        connection.close()
+def acquire_connection():
+    # Wait at most 2 s for a free connection: a probe or a request must
+    # never hang on a dead database.
+    with tracer.start_as_current_span("db.pool.acquire"):
+        return pool.getconn(timeout=2)
+
+
+def release_connection(connection):
+    pool.putconn(connection)
 
 
 # ---------------------------------------------------------------------------
@@ -71,20 +131,25 @@ def create_tables():
 
 @asynccontextmanager
 async def lifespan(app):
-    # Code before "yield" runs once when the app starts.
-    # Compose only starts the API after the database healthcheck passes,
-    # so the database is ready at this point.
-    create_tables()
+    global pool
+    pool = create_pool()
+    pool.open(wait=True, timeout=10)
+
+    connection = acquire_connection()
+    try:
+        connection.execute(CREATE_TABLES_SQL)
+    finally:
+        release_connection(connection)
+
     yield
-    # Code after "yield" would run when the app stops (nothing to do).
+
+    pool.close()
 
 
 app = FastAPI(title="orders-api", lifespan=lifespan)
 
 
 class NewOrder(BaseModel):
-    """The JSON body expected by POST /orders."""
-
     product_id: int
     quantity: int
 
@@ -95,21 +160,21 @@ class NewOrder(BaseModel):
 
 @app.get("/healthz")
 def healthz():
-    # Liveness: "is the process alive?"
-    # It must NOT touch the database. If it did, a short database outage
-    # would make Kubernetes restart every replica at the same time.
+    # Liveness never touches the database: a database outage must not get
+    # every replica restarted.
     return {"status": "ok"}
 
 
 @app.get("/readyz")
 def readyz(response: Response):
-    # Readiness: "can this instance serve traffic right now?"
-    # It answers 200 if the database responds and 503 if it does not.
     try:
-        connection = open_connection()
-        connection.execute("SELECT 1")
-        connection.close()
-    except psycopg.OperationalError:
+        connection = acquire_connection()
+        try:
+            connection.execute("SELECT 1")
+        finally:
+            release_connection(connection)
+    except (PoolTimeout, psycopg.OperationalError):
+        logger.error("database not reachable, instance not ready")
         response.status_code = 503
         return {"status": "unavailable"}
 
@@ -118,25 +183,17 @@ def readyz(response: Response):
 
 @app.get("/products")
 def list_products():
-    connection = open_connection()
+    connection = acquire_connection()
     try:
         rows = connection.execute(
             "SELECT id, name, price FROM products ORDER BY id"
         ).fetchall()
     finally:
-        connection.close()
+        release_connection(connection)
 
-    # Each row is a tuple like (1, 'keyboard', Decimal('49.90')).
-    # Turn every row into a dictionary so FastAPI returns readable JSON.
     products = []
     for row in rows:
-        product = {
-            "id": row[0],
-            "name": row[1],
-            "price": float(row[2]),
-        }
-        products.append(product)
-
+        products.append({"id": row[0], "name": row[1], "price": float(row[2])})
     return products
 
 
@@ -145,27 +202,36 @@ def create_order(order: NewOrder):
     if order.quantity <= 0:
         raise HTTPException(status_code=400, detail="quantity must be greater than 0")
 
-    connection = open_connection()
+    connection = acquire_connection()
     try:
-        # 1. Check that the product exists.
         product = connection.execute(
             "SELECT id FROM products WHERE id = %s",
             (order.product_id,),
         ).fetchone()
 
         if product is None:
+            logger.warning(
+                "order rejected: product not found",
+                extra={"product_id": order.product_id},
+            )
             raise HTTPException(status_code=404, detail="product not found")
 
-        # 2. Save the order and get back its new id.
         new_row = connection.execute(
             "INSERT INTO orders (product_id, quantity) VALUES (%s, %s) RETURNING id",
             (order.product_id, order.quantity),
         ).fetchone()
-        connection.commit()
     finally:
-        connection.close()
+        release_connection(connection)
 
     new_order_id = new_row[0]
+    logger.info(
+        "order created",
+        extra={
+            "order_id": new_order_id,
+            "product_id": order.product_id,
+            "quantity": order.quantity,
+        },
+    )
     return {
         "id": new_order_id,
         "product_id": order.product_id,
@@ -174,30 +240,25 @@ def create_order(order: NewOrder):
 
 
 # ---------------------------------------------------------------------------
-# Chaos: programmable failures
+# Chaos: programmable failures to prove that dashboards, SLOs and alerts work.
+# Lab only: an unauthenticated /admin/chaos would be a security hole in production.
 
-# Master switch. If FIREBREAK_CHAOS_ENABLED is not exactly "true",
+# Off unless FIREBREAK_CHAOS_ENABLED is exactly "true"; then /admin/chaos exists.
 CHAOS_ENABLED = os.getenv("FIREBREAK_CHAOS_ENABLED", "false").lower() == "true"
 
-# Current chaos settings. All zeros means "no chaos".
 chaos_settings = {
-    "error_rate": 0.0,  # 0.2  -> 20% of requests answer 500
-    "latency_ms": 0,  # 300  -> slow requests wait 300 ms
-    "latency_rate": 0.0,  # 0.1  -> 10% of requests are slow
-    "leak_mb_per_request": 0,  # 1    -> each request keeps 1 MB forever
+    "error_rate": 0.0,  # fraction of requests that answer 500
+    "latency_ms": 0,  # extra delay for slow requests
+    "latency_rate": 0.0,  # fraction of requests that are slow
+    "leak_mb_per_request": 0,  # memory kept forever on every request
 }
 
-# Memory that is never freed (the leak lives here).
 leaked_memory = []
 
-# Paths that chaos must never touch: the probes, the chaos endpoints
-# themselves and the interactive docs.
 PATHS_WITHOUT_CHAOS = ["/healthz", "/readyz", "/metrics", "/docs", "/openapi.json"]
 
 
 class ChaosSettings(BaseModel):
-    """The JSON body expected by POST /admin/chaos."""
-
     error_rate: float = 0.0
     latency_ms: int = 0
     latency_rate: float = 0.0
@@ -206,35 +267,27 @@ class ChaosSettings(BaseModel):
 
 @app.middleware("http")
 async def chaos_middleware(request: Request, call_next):
-    # A middleware wraps every request: this code runs before the endpoint.
     path = request.url.path
 
     chaos_applies = CHAOS_ENABLED
-    if path in PATHS_WITHOUT_CHAOS:
-        chaos_applies = False
-    if path.startswith("/admin"):
+    if path in PATHS_WITHOUT_CHAOS or path.startswith("/admin"):
         chaos_applies = False
 
     if chaos_applies:
-        # 1. Latency: only a fraction of the requests (latency_rate) is slow.
         if random.random() < chaos_settings["latency_rate"]:
-            seconds = chaos_settings["latency_ms"] / 1000
-            await asyncio.sleep(seconds)
+            await asyncio.sleep(chaos_settings["latency_ms"] / 1000)
 
-        # 2. Errors: a fraction of the requests (error_rate) answers 500.
         if random.random() < chaos_settings["error_rate"]:
+            logger.error("chaos: injected error", extra={"path": path})
             return JSONResponse(
                 status_code=500, content={"detail": "chaos: injected error"}
             )
 
-        # 3. Memory leak: keep N megabytes in a list that is never cleaned.
         megabytes = chaos_settings["leak_mb_per_request"]
         if megabytes > 0:
             leaked_memory.append(bytearray(megabytes * 1024 * 1024))
 
-    # Let the request continue to the real endpoint.
-    response = await call_next(request)
-    return response
+    return await call_next(request)
 
 
 if CHAOS_ENABLED:
@@ -264,30 +317,21 @@ if CHAOS_ENABLED:
         chaos_settings["latency_ms"] = new_settings.latency_ms
         chaos_settings["latency_rate"] = new_settings.latency_rate
         chaos_settings["leak_mb_per_request"] = new_settings.leak_mb_per_request
+        logger.warning("chaos settings changed", extra=dict(chaos_settings))
         return chaos_settings
 
 
 # ---------------------------------------------------------------------------
-# Metrics (Prometheus)
-#
-# The RED method: for every request we record
-#   Rate     -> how many requests arrive  (http_requests_total)
-#   Errors   -> how many of them fail     (http_requests_total with status 5xx)
-#   Duration -> how long each one takes   (http_request_duration_seconds)
-# Saturation (the 4th golden signal) comes for free: prometheus-client
-# exports process_resident_memory_bytes and other process_* metrics on Linux.
+# Metrics (RED method). Saturation comes from the process_* metrics that
+# prometheus-client exports by itself.
 
-# Counter: a number that only goes up. Always queried with rate() or increase().
 REQUESTS = Counter(
     "http_requests_total",
     "Total HTTP requests, by method, route and status code.",
     ["method", "route", "status"],
 )
 
-# Histogram: sorts every duration into buckets (<= 5 ms, <= 10 ms, ... <= 10 s)
-# so Prometheus can calculate percentiles like p95 later.
-# status_class (2xx/4xx/5xx) instead of the exact code keeps the number of
-# time series small while still separating fast errors from real successes.
+# status_class (2xx/5xx) instead of the exact code keeps cardinality low.
 REQUEST_DURATION = Histogram(
     "http_request_duration_seconds",
     "HTTP request duration in seconds, by method, route and status class.",
@@ -296,37 +340,25 @@ REQUEST_DURATION = Histogram(
 
 
 def find_route_template(request: Request):
-    """Return the route template ("/orders"), never the raw path.
-
-    Labels must have a small, fixed set of values. A raw path such as
-    "/orders/1834" would create one time series per id and eventually
-    run Prometheus out of memory (high cardinality).
-    """
+    # Route templates, never raw paths: one series per id would exhaust
+    # Prometheus memory. Unknown paths share a single label value.
     for route in request.app.routes:
         match, _ = route.matches(request.scope)
         if match == Match.FULL:
             return route.path
-    # Any path the app does not know (typos, scanners) shares one label value.
     return "unmatched"
 
 
 @app.get("/metrics")
 def metrics():
-    # Prometheus calls this endpoint every few seconds and stores the numbers.
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
-# ORDER MATTERS. FastAPI runs the LAST middleware added as the OUTERMOST one.
-# This middleware is defined after chaos_middleware on purpose: it wraps the
-# chaos middleware, so it also sees the 500s and the latency that chaos
-# injects. If it were inside, injected failures would never be measured and
-# the dashboard would say everything is fine while the app is failing.
+# Defined after chaos_middleware on purpose: the last middleware added is the
+# outermost, so this one also measures the failures that chaos injects.
 @app.middleware("http")
 async def metrics_middleware(request: Request, call_next):
-    path = request.url.path
-
-    # Do not measure the metrics endpoint itself (it would only add noise).
-    if path == "/metrics":
+    if request.url.path == "/metrics":
         return await call_next(request)
 
     start = time.perf_counter()
@@ -335,8 +367,8 @@ async def metrics_middleware(request: Request, call_next):
 
     method = request.method
     route = find_route_template(request)
-    status = str(response.status_code)  # "200", "404", "500"...
-    status_class = status[0] + "xx"  # "2xx", "4xx", "5xx"
+    status = str(response.status_code)
+    status_class = status[0] + "xx"
 
     REQUESTS.labels(method=method, route=route, status=status).inc()
     REQUEST_DURATION.labels(

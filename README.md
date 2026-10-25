@@ -10,6 +10,43 @@ during the incident it was supposed to catch. Firebreak ships with its own
 victim app, `orders-api`, which can be told to fail in specific ways (errors,
 latency, memory leaks), so every dashboard, SLO and alert can be proven to work.
 
+## What's in it today
+
+A small FastAPI service backed by Postgres, wired to a full observability
+stack: Prometheus for metrics, Loki for logs, Tempo for traces, an
+OpenTelemetry Collector in the middle and Grafana on top. A request that goes
+wrong can be followed from a spike on a dashboard to its trace and its log
+lines, all in one place.
+
+Alerting, SLOs, load tests and chaos game days are next. The
+[changelog](CHANGELOG.md) tracks what has landed so far.
+
+## Quick start
+
+You need Docker with Compose v2.
+
+```bash
+cp .env.example .env    # set real passwords
+docker compose up -d --build --wait
+scripts/generate-traffic.sh 5
+```
+
+Then open Grafana at <http://localhost:3000> and look for the
+**Golden signals** dashboard in the Firebreak folder.
+
+## Documentation
+
+- [Architecture](docs/architecture.md): the moving parts and how data flows between them.
+- [Run it locally](docs/how-to/run-locally.md): start, stop, reset.
+- [Endpoints and ports](docs/reference/endpoints-and-ports.md): every URL in one table.
+
+## Built with
+
+[FastAPI](https://fastapi.tiangolo.com/), [PostgreSQL](https://www.postgresql.org/),
+[Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/oss/grafana/),
+[Loki](https://grafana.com/oss/loki/), [Tempo](https://grafana.com/oss/tempo/) and
+[OpenTelemetry](https://opentelemetry.io/).
+
 ## License
 
 [MIT](LICENSE)

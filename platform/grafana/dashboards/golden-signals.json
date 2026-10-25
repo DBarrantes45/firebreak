@@ -102,6 +102,24 @@
           "legendFormat": "resident memory"
         }
       ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Latency p95 with exemplars (OpenTelemetry) — click a diamond to open the trace",
+      "description": "Same idea as the latency panel, but from the OpenTelemetry metric pushed through the Collector. Each diamond is one real request; clicking it opens its trace in Tempo.",
+      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 9 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{job=\"orders-api\", http_route=~\"/products|/orders\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{http_route}}",
+          "exemplar": true
+        }
+      ]
     }
   ]
 }

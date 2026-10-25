@@ -1,17 +1,23 @@
-# How often Prometheus collects ("scrapes") metrics from every target.
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
 scrape_configs:
-  # orders-api exposes its metrics at http://api:8000/metrics.
-  # "api" is the service name in compose.yaml, resolved inside the Compose
-  # network. "localhost" here would point to the Prometheus container itself.
   - job_name: orders-api
     static_configs:
       - targets: ["api:8000"]
 
-  # Prometheus also measures itself.
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
+
+# Metrics pushed over OTLP by the Collector (needs --web.enable-otlp-receiver).
+otlp:
+  promote_resource_attributes:
+    - service.name
+    - service.instance.id
+
+storage:
+  tsdb:
+    # Pushed samples can arrive late; without this window they are dropped.
+    out_of_order_time_window: 30m
