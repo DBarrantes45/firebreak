@@ -1,0 +1,6 @@
+# Files Docker must not send to the build (smaller, faster and safer builds).
+# "**/" means "in any folder"; without it the pattern only matches at the top.
+**/__pycache__/
+**/*.pyc
+tests/
+.env

@@ -1,5 +1,27 @@
 repos:
+  # Secrets: blocks tokens and passwords before they reach a commit.
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:
       - id: gitleaks
+
+  # Python: lint (bugs, unused imports) and formatting.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.2
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  # YAML: indentation, duplicate keys, syntax. Rules live in .yamllint.
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [--strict]
+
+  # Dockerfile best practices. Runs in Docker, so nothing to install.
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.15.1
+    hooks:
+      - id: hadolint-docker

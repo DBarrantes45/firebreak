@@ -1,0 +1,5 @@
+# Development and test tools. They never go into the Docker image.
+# The constraint keeps shared packages on the same versions as the app.
+-c requirements.txt
+pytest
+httpx2
