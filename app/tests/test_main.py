@@ -1,3 +1,7 @@
+import main
+import pytest
+
+
 def test_healthz_returns_ok(client):
     response = client.get("/healthz")
     assert response.status_code == 200
@@ -37,6 +41,21 @@ def test_metrics_count_errors_injected_by_chaos(client):
     before = read_counter(client, "/products", "500")
     client.post("/admin/chaos", json={"error_rate": 1.0})
     client.get("/products")
+    after = read_counter(client, "/products", "500")
+    assert after == before + 1
+
+
+def test_metrics_count_unhandled_exceptions(client, monkeypatch):
+    # The real failure mode: the database is down, so the endpoint raises.
+    # It must still show up as a 500 in the metrics, or the SLO goes blind.
+    def database_down():
+        raise RuntimeError("database down")
+
+    monkeypatch.setattr(main, "acquire_connection", database_down)
+    before = read_counter(client, "/products", "500")
+    # TestClient re-raises server errors; a real client would get a 500.
+    with pytest.raises(RuntimeError):
+        client.get("/products")
     after = read_counter(client, "/products", "500")
     assert after == before + 1
 

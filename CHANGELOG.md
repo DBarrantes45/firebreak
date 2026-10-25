@@ -3,6 +3,16 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] - 2026-10-25
+
+### Fixed
+
+- Requests that failed with an unhandled exception, such as the database
+  being down, were answered with a 500 but never counted in
+  `http_requests_total`. The availability SLO and its alerts were blind to
+  that whole class of outage. Found during a manual game day: the database
+  went down and no alert fired.
+
 ## [0.5.0] - 2026-10-25
 
 Alerting: problems now reach a phone, with instructions attached.
