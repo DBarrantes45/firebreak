@@ -53,6 +53,63 @@ jobs:
             --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
             firebreak-api:ci
 
+  # Configuration is code too: a broken prometheus.yml or dashboard JSON
+  # fails here instead of at 2 a.m.
+  validate-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check prometheus.yml with promtool
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/platform/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:v3.15.1 check config /etc/prometheus/prometheus.yml
+      - name: Check that every dashboard is valid JSON
+        run: |
+          for file in platform/grafana/dashboards/*.json; do
+            python3 -m json.tool "$file" > /dev/null && echo "OK: $file"
+          done
+
+  # Starts the whole stack and checks that every piece answers and that
+  # Prometheus is really scraping the API.
+  smoke:
+    runs-on: ubuntu-latest
+    needs: [validate-config]
+    steps:
+      - uses: actions/checkout@v7
+      - run: cp .env.example .env
+      - name: Start the stack and wait for every healthcheck
+        run: docker compose up -d --build --wait --wait-timeout 180
+      - name: The API answers
+        run: |
+          curl -fsS localhost:8000/healthz
+          curl -fsS localhost:8000/readyz
+          curl -fsS localhost:8000/products
+          curl -fsS localhost:8000/metrics | grep -q http_requests_total
+      - name: Prometheus scrapes the API (target "up")
+        run: |
+          for attempt in $(seq 1 12); do
+            health=$(curl -fsS localhost:9090/api/v1/targets \
+              | jq -r '.data.activeTargets[] | select(.labels.job == "orders-api") | .health')
+            echo "attempt $attempt: orders-api target is '$health'"
+            if [ "$health" = "up" ]; then exit 0; fi
+            sleep 5
+          done
+          exit 1
+      - name: Grafana loaded the data source and the dashboard
+        run: |
+          # Read the password from .env instead of writing it here:
+          # gitleaks rightly flags credentials written inline in commands.
+          source .env
+          curl -fsS -u "admin:${GRAFANA_ADMIN_PASSWORD}" localhost:3000/api/datasources/uid/prometheus > /dev/null
+          curl -fsS -u "admin:${GRAFANA_ADMIN_PASSWORD}" localhost:3000/api/dashboards/uid/golden-signals > /dev/null
+      - name: Show logs if something failed
+        if: failure()
+        run: docker compose logs
+      - name: Clean up
+        if: always()
+        run: docker compose down -v
+
   secrets:
     runs-on: ubuntu-latest
     steps:

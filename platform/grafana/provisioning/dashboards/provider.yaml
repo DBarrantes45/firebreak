@@ -1,0 +1,12 @@
+# Tells Grafana to load every dashboard JSON found in a folder.
+apiVersion: 1
+
+providers:
+  - name: firebreak
+    folder: Firebreak
+    type: file
+    # Changes made in the UI are not saved back to the files:
+    # the JSON in the repo is the source of truth.
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

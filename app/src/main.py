@@ -1,12 +1,15 @@
 import asyncio
 import os
 import random
+import time
 from contextlib import asynccontextmanager
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel
+from starlette.routing import Match
 
 # ---------------------------------------------------------------------------
 # Database
@@ -189,7 +192,7 @@ leaked_memory = []
 
 # Paths that chaos must never touch: the probes, the chaos endpoints
 # themselves and the interactive docs.
-PATHS_WITHOUT_CHAOS = ["/healthz", "/readyz", "/docs", "/openapi.json"]
+PATHS_WITHOUT_CHAOS = ["/healthz", "/readyz", "/metrics", "/docs", "/openapi.json"]
 
 
 class ChaosSettings(BaseModel):
@@ -262,3 +265,82 @@ if CHAOS_ENABLED:
         chaos_settings["latency_rate"] = new_settings.latency_rate
         chaos_settings["leak_mb_per_request"] = new_settings.leak_mb_per_request
         return chaos_settings
+
+
+# ---------------------------------------------------------------------------
+# Metrics (Prometheus)
+#
+# The RED method: for every request we record
+#   Rate     -> how many requests arrive  (http_requests_total)
+#   Errors   -> how many of them fail     (http_requests_total with status 5xx)
+#   Duration -> how long each one takes   (http_request_duration_seconds)
+# Saturation (the 4th golden signal) comes for free: prometheus-client
+# exports process_resident_memory_bytes and other process_* metrics on Linux.
+
+# Counter: a number that only goes up. Always queried with rate() or increase().
+REQUESTS = Counter(
+    "http_requests_total",
+    "Total HTTP requests, by method, route and status code.",
+    ["method", "route", "status"],
+)
+
+# Histogram: sorts every duration into buckets (<= 5 ms, <= 10 ms, ... <= 10 s)
+# so Prometheus can calculate percentiles like p95 later.
+# status_class (2xx/4xx/5xx) instead of the exact code keeps the number of
+# time series small while still separating fast errors from real successes.
+REQUEST_DURATION = Histogram(
+    "http_request_duration_seconds",
+    "HTTP request duration in seconds, by method, route and status class.",
+    ["method", "route", "status_class"],
+)
+
+
+def find_route_template(request: Request):
+    """Return the route template ("/orders"), never the raw path.
+
+    Labels must have a small, fixed set of values. A raw path such as
+    "/orders/1834" would create one time series per id and eventually
+    run Prometheus out of memory (high cardinality).
+    """
+    for route in request.app.routes:
+        match, _ = route.matches(request.scope)
+        if match == Match.FULL:
+            return route.path
+    # Any path the app does not know (typos, scanners) shares one label value.
+    return "unmatched"
+
+
+@app.get("/metrics")
+def metrics():
+    # Prometheus calls this endpoint every few seconds and stores the numbers.
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+# ORDER MATTERS. FastAPI runs the LAST middleware added as the OUTERMOST one.
+# This middleware is defined after chaos_middleware on purpose: it wraps the
+# chaos middleware, so it also sees the 500s and the latency that chaos
+# injects. If it were inside, injected failures would never be measured and
+# the dashboard would say everything is fine while the app is failing.
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    path = request.url.path
+
+    # Do not measure the metrics endpoint itself (it would only add noise).
+    if path == "/metrics":
+        return await call_next(request)
+
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_seconds = time.perf_counter() - start
+
+    method = request.method
+    route = find_route_template(request)
+    status = str(response.status_code)  # "200", "404", "500"...
+    status_class = status[0] + "xx"  # "2xx", "4xx", "5xx"
+
+    REQUESTS.labels(method=method, route=route, status=status).inc()
+    REQUEST_DURATION.labels(
+        method=method, route=route, status_class=status_class
+    ).observe(duration_seconds)
+
+    return response
