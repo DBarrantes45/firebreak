@@ -362,17 +362,25 @@ async def metrics_middleware(request: Request, call_next):
         return await call_next(request)
 
     start = time.perf_counter()
-    response = await call_next(request)
-    duration_seconds = time.perf_counter() - start
+    try:
+        response = await call_next(request)
+        status = str(response.status_code)
+    except Exception:
+        # An unhandled exception (e.g. the database is down) reaches the
+        # client as a 500, but call_next raises instead of returning it.
+        # Without this, real failures would never be counted and the SLO
+        # alerts would stay silent.
+        status = "500"
+        raise
+    finally:
+        duration_seconds = time.perf_counter() - start
+        method = request.method
+        route = find_route_template(request)
+        status_class = status[0] + "xx"
 
-    method = request.method
-    route = find_route_template(request)
-    status = str(response.status_code)
-    status_class = status[0] + "xx"
-
-    REQUESTS.labels(method=method, route=route, status=status).inc()
-    REQUEST_DURATION.labels(
-        method=method, route=route, status_class=status_class
-    ).observe(duration_seconds)
+        REQUESTS.labels(method=method, route=route, status=status).inc()
+        REQUEST_DURATION.labels(
+            method=method, route=route, status_class=status_class
+        ).observe(duration_seconds)
 
     return response
