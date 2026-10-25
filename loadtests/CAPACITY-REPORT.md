@@ -21,7 +21,7 @@ Measured on 2026-10-25 against `v0.5.1` plus the phase 6 changes.
 | Average load | 20 rps for 3 min | 5.9 ms | 0% | ✅ within SLO |
 | Breakpoint | +50 rps every 30 s | 250 ms crossed at ~365 rps | 0% | stopped at 3 min 18 s |
 | Spike | 20 → 450 rps for 1 min → 20 | up to ~8 s during the burst | 0% | ✅ recovered |
-| Soak | 30 rps for 1 h | _pending_ | _pending_ | _pending_ |
+| Soak | 30 rps for 1 h | 10.7 ms | 0% | ✅ memory flat |
 
 ## Breaking point
 
@@ -55,7 +55,17 @@ errors. Worth considering before this runs in front of real users.
 
 ## Soak
 
-_Pending: one hour at 30 rps, watching memory._
+One hour at 30 rps with chaos off: 108,000 requests, p99 10.7 ms, no errors.
+
+Memory sampled once a minute stayed between 176 and 187 MB, and drifted
+slightly down rather than up. **No leak.**
+
+It started at 187 MB, not the 70 MB measured earlier in the day. The spike
+right before had made Python reserve memory for the queue of waiting
+requests, and Python keeps that memory instead of handing it back to the
+operating system. It doesn't grow, so it isn't a leak, but it is why a
+service weighs more after a traffic burst than before it. With a 512 MB
+limit there is plenty of room left.
 
 ## Headroom
 
