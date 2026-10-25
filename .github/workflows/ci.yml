@@ -103,6 +103,8 @@ jobs:
         run: scripts/smoke-test.sh
       - name: An outage reaches Alertmanager
         run: scripts/e2e-alert.sh
+      - name: Load smoke test (k6 thresholds are the gate)
+        run: scripts/loadtest.sh smoke
       - name: Show logs if something failed
         if: failure()
         run: docker compose logs

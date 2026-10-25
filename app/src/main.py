@@ -325,17 +325,19 @@ if CHAOS_ENABLED:
 # Metrics (RED method). Saturation comes from the process_* metrics that
 # prometheus-client exports by itself.
 
+# traffic="loadtest" marks requests sent by k6 (header X-Load-Test), so the
+# SLOs can leave planned load tests out, as the error budget policy says.
 REQUESTS = Counter(
     "http_requests_total",
-    "Total HTTP requests, by method, route and status code.",
-    ["method", "route", "status"],
+    "Total HTTP requests, by method, route, status code and traffic type.",
+    ["method", "route", "status", "traffic"],
 )
 
 # status_class (2xx/5xx) instead of the exact code keeps cardinality low.
 REQUEST_DURATION = Histogram(
     "http_request_duration_seconds",
-    "HTTP request duration in seconds, by method, route and status class.",
-    ["method", "route", "status_class"],
+    "HTTP request duration in seconds, by method, route, status class and traffic type.",
+    ["method", "route", "status_class", "traffic"],
 )
 
 
@@ -377,10 +379,13 @@ async def metrics_middleware(request: Request, call_next):
         method = request.method
         route = find_route_template(request)
         status_class = status[0] + "xx"
+        traffic = "loadtest" if request.headers.get("x-load-test") else "user"
 
-        REQUESTS.labels(method=method, route=route, status=status).inc()
+        REQUESTS.labels(
+            method=method, route=route, status=status, traffic=traffic
+        ).inc()
         REQUEST_DURATION.labels(
-            method=method, route=route, status_class=status_class
+            method=method, route=route, status_class=status_class, traffic=traffic
         ).observe(duration_seconds)
 
     return response

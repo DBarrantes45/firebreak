@@ -33,9 +33,9 @@ tests:
     interval: 1m
     input_series:
       # 100 requests per minute, 5 of them fail: burn rate 50.
-      - series: 'http_requests_total{job="orders-api", route="/products", status="200"}'
+      - series: 'http_requests_total{job="orders-api", route="/products", status="200", traffic="user"}'
         values: '0+95x90'
-      - series: 'http_requests_total{job="orders-api", route="/products", status="500"}'
+      - series: 'http_requests_total{job="orders-api", route="/products", status="500", traffic="user"}'
         values: '0+5x90'
     alert_rule_test:
       - eval_time: 75m
@@ -78,9 +78,9 @@ tests:
     interval: 1m
     input_series:
       # 2000 requests per minute, 1 fails: burn rate 0.5, half the allowed pace.
-      - series: 'http_requests_total{job="orders-api", route="/products", status="200"}'
+      - series: 'http_requests_total{job="orders-api", route="/products", status="200", traffic="user"}'
         values: '0+1999x90'
-      - series: 'http_requests_total{job="orders-api", route="/products", status="500"}'
+      - series: 'http_requests_total{job="orders-api", route="/products", status="500", traffic="user"}'
         values: '0+1x90'
     alert_rule_test:
       - eval_time: 75m

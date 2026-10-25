@@ -3,6 +3,21 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-10-25
+
+Load and capacity: how much traffic before the SLOs break.
+
+### Added
+
+- k6 load tests in `loadtests/`: smoke, average load, breakpoint, spike and
+  soak, run with `scripts/loadtest.sh <scenario>`, which passes k6's exit code
+  through.
+- A capacity report: about 300 rps within the SLOs, limited by the API's CPU.
+- CPU and memory limits for the API and the database (1 CPU, 512 MB each).
+- A `traffic` label (`user` or `loadtest`) on the request metrics; the SLOs
+  only count user traffic, as the error budget policy says.
+- CI runs the k6 smoke test as a gate.
+
 ## [0.5.1] - 2026-10-25
 
 ### Fixed
