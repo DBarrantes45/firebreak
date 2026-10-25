@@ -64,22 +64,27 @@ jobs:
           docker run --rm \
             -v "$PWD/platform/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro" \
             otel/opentelemetry-collector-contrib:0.163.2 validate --config=/etc/otelcol/config.yaml
-      - name: Validate the SLO specs
-        run: |
-          docker run --rm -v "$PWD:/work" -w /work \
-            ghcr.io/slok/sloth:v0.16.0 validate -i slos/
       - name: Generated SLO rules are up to date
         run: |
-          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
-            ghcr.io/slok/sloth:v0.16.0 generate -i slos/orders-api.yml \
-            -o platform/prometheus/rules/slo-orders-api.yml
+          scripts/generate-slo-rules.sh
           git diff --exit-code platform/prometheus/rules/ \
-            || { echo "Rules are stale: run the Sloth generate command from slos/README.md"; exit 1; }
+            || { echo "Rules are stale: run scripts/generate-slo-rules.sh and commit"; exit 1; }
       - name: Check the alerting and recording rules with promtool
         run: |
           docker run --rm --entrypoint promtool \
             -v "$PWD/platform/prometheus:/etc/prometheus:ro" \
-            prom/prometheus:v3.15.1 check rules /etc/prometheus/rules/slo-orders-api.yml
+            prom/prometheus:v3.15.1 check rules \
+            /etc/prometheus/rules/slo-orders-api.yml /etc/prometheus/rules/orders-api.yml
+      - name: Unit tests for the alerting rules
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/platform/prometheus:/etc/prometheus:ro" -w /etc/prometheus/tests \
+            prom/prometheus:v3.15.1 test rules alerts.test.yml
+      - name: Check the Alertmanager config with amtool
+        run: |
+          docker run --rm --entrypoint amtool \
+            -v "$PWD/platform/alertmanager:/etc/alertmanager:ro" \
+            prom/alertmanager:v0.34.1 check-config /etc/alertmanager/alertmanager.yml
       - name: Check that every dashboard is valid JSON
         run: |
           for file in platform/grafana/dashboards/*.json; do
@@ -96,6 +101,8 @@ jobs:
         run: docker compose up -d --build --wait --wait-timeout 180
       - name: Run the smoke test
         run: scripts/smoke-test.sh
+      - name: An outage reaches Alertmanager
+        run: scripts/e2e-alert.sh
       - name: Show logs if something failed
         if: failure()
         run: docker compose logs

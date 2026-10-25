@@ -1,0 +1,7 @@
+{{ define "firebreak.telegram" -}}
+{{ if eq .Status "firing" }}🔥{{ else }}✅{{ end }} <b>{{ .CommonLabels.alertname }}</b> · {{ .CommonLabels.severity }}{{ if .CommonLabels.sloth_slo }} · {{ .CommonLabels.sloth_slo }}{{ end }}
+{{ range .Alerts -}}
+{{ .Annotations.summary }}
+{{ if .Annotations.runbook_url }}<a href="{{ .Annotations.runbook_url }}">Runbook</a>{{ end }}
+{{ end -}}
+{{- end }}

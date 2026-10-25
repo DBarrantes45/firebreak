@@ -10,6 +10,7 @@ rest of your network.
 | Prometheus | <http://localhost:9090> | Query console; *Status → Target health* shows what it scrapes |
 | Tempo | <http://localhost:3200/ready> | `/api/traces/<trace_id>` returns a single trace |
 | Loki | <http://localhost:3100/ready> | LogQL over HTTP |
+| Alertmanager | <http://localhost:9093> | Active alerts and silences |
 | PostgreSQL | `localhost:5432` | Credentials in `.env` |
 
 ## orders-api

@@ -76,6 +76,21 @@ services:
       timeout: 3s
       retries: 3
 
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    volumes:
+      - ./platform/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./platform/alertmanager/templates:/etc/alertmanager/templates:ro
+      - ./platform/alertmanager/secrets:/etc/alertmanager/secrets:ro
+      - alertmanagerdata:/alertmanager
+    ports:
+      - "127.0.0.1:9093:9093"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9093/-/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.163.2
     command: ["--config=/etc/otelcol/config.yaml"]
@@ -130,3 +145,4 @@ volumes:
   grafanadata:
   tempodata:
   lokidata:
+  alertmanagerdata:

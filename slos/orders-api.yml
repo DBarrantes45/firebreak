@@ -17,8 +17,10 @@ slos:
       name: OrdersApiHighErrorRate
       labels:
         category: "availability"
+        service: "orders-api"
       annotations:
         summary: "orders-api is burning its availability error budget too fast."
+        runbook_url: "https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-high-error-rate.md"
       page_alert:
         labels:
           severity: page
@@ -47,8 +49,10 @@ slos:
       name: OrdersApiHighLatency
       labels:
         category: "latency"
+        service: "orders-api"
       annotations:
         summary: "orders-api is burning its latency error budget too fast."
+        runbook_url: "https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-high-latency.md"
       page_alert:
         labels:
           severity: page

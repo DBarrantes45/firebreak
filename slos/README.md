@@ -4,9 +4,7 @@
 rules in `platform/prometheus/rules/`; never edit those by hand, regenerate:
 
 ```bash
-docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" -w /work \
-  ghcr.io/slok/sloth:v0.16.0 generate -i slos/orders-api.yml \
-  -o platform/prometheus/rules/slo-orders-api.yml
+scripts/generate-slo-rules.sh
 ```
 
 Both SLOs use a 30-day window and only count `/products` and `/orders`.

@@ -19,9 +19,10 @@ wrong can be followed from a spike on a dashboard to its trace and its log
 lines, all in one place.
 
 On top of that sit two SLOs, one for availability and one for latency, with
-burn-rate alerts generated from a short spec. Alert routing, load tests and
-chaos game days come next; the [changelog](CHANGELOG.md) tracks what has
-landed so far.
+burn-rate alerts generated from a short spec. Alertmanager sends them to
+Telegram, each with a link to its runbook, and CI proves an outage actually
+raises an alert. Load tests and chaos game days come next; the
+[changelog](CHANGELOG.md) tracks what has landed so far.
 
 ## Quick start
 
@@ -42,6 +43,7 @@ Then open Grafana at <http://localhost:3000> and look for the
 - [Run it locally](docs/how-to/run-locally.md): start, stop, reset.
 - [Endpoints and ports](docs/reference/endpoints-and-ports.md): every URL in one table.
 - [SLOs](slos/README.md) and the [error budget policy](docs/error-budget-policy.md).
+- [Runbooks](runbooks/): what to do when each alert fires.
 
 ## Built with
 

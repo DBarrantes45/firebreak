@@ -1,0 +1,14 @@
+groups:
+  - name: orders-api
+    rules:
+      # The SLO alerts go quiet when the app stops sending data, so a dead
+      # app needs its own alert. up == 0 comes free with scraping.
+      - alert: OrdersApiDown
+        expr: up{job="orders-api"} == 0
+        for: 1m
+        labels:
+          severity: page
+          service: orders-api
+        annotations:
+          summary: "Prometheus cannot scrape orders-api: the service is down or unreachable."
+          runbook_url: "https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-down.md"

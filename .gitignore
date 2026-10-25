@@ -218,3 +218,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Alertmanager secrets (Telegram bot token and chat id)
+platform/alertmanager/secrets/*
+!platform/alertmanager/secrets/README.md
