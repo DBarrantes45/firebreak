@@ -3,6 +3,32 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-10-25
+
+Logs and traces: from "errors went up" to the exact request that failed.
+
+### Added
+
+- OpenTelemetry zero-code instrumentation for FastAPI, psycopg and logging,
+  configured only through `OTEL_*` environment variables.
+- OpenTelemetry Collector routing traces to Tempo, logs to Loki and metrics
+  to Prometheus over OTLP.
+- Tempo 3.1 and Loki 3.7, provisioned in Grafana with links between them:
+  exemplar → trace, trace → logs and log → trace.
+- JSON logs on stdout with `trace_id` and `span_id`. In Loki the ids are
+  structured metadata, never labels.
+- A latency panel with exemplars on the Golden signals dashboard.
+- Documentation in `docs/`: architecture, running locally, endpoints and ports.
+- `scripts/smoke-test.sh`, run in CI: checks every service and that one
+  request's trace and log line actually reach Tempo and Loki.
+- CI validates the Collector config.
+
+### Changed
+
+- Database access goes through a connection pool. A trace showed that opening
+  a connection per request cost about 4 ms against 0.1 ms for the query; p95
+  latency of `/products` dropped from about 10 ms to about 5 ms.
+
 ## [0.2.0] - 2026-10-25
 
 Metrics: the app can now be watched.

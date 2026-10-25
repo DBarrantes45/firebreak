@@ -1,4 +1,14 @@
 fastapi
 uvicorn
 psycopg[binary]
+psycopg-pool
 prometheus-client
+
+# OpenTelemetry: SDK + "opentelemetry-instrument" launcher, and the OTLP exporter.
+opentelemetry-distro
+opentelemetry-exporter-otlp
+# Only the instrumentations this app really uses (bootstrap lists every
+# library it finds in the venv, dev tools included).
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-psycopg
+opentelemetry-instrumentation-logging

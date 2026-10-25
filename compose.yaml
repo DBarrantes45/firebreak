@@ -26,6 +26,17 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
       FIREBREAK_CHAOS_ENABLED: ${FIREBREAK_CHAOS_ENABLED:-false}
+      OTEL_SERVICE_NAME: orders-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_METRIC_EXPORT_INTERVAL: "15000"
+      # Stable HTTP conventions (http.server.request.duration in seconds);
+      # without it the instrumentation emits the old millisecond metric.
+      OTEL_SEMCONV_STABILITY_OPT_IN: http
+      OTEL_PYTHON_EXCLUDED_URLS: "healthz,readyz,metrics"
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -33,6 +44,7 @@ services:
         condition: service_healthy
         restart: true
     healthcheck:
+      # The slim image has no curl.
       test:
         - CMD
         - python
@@ -45,6 +57,12 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.15.1
+    # Setting "command" drops the image defaults, so the first two are repeated.
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-otlp-receiver
+      - --enable-feature=exemplar-storage
     volumes:
       - ./platform/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - promdata:/prometheus
@@ -58,10 +76,38 @@ services:
       timeout: 3s
       retries: 3
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.163.2
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./platform/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      - tempo
+      - loki
+
+  loki:
+    image: grafana/loki:3.7.9
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./platform/loki/config.yaml:/etc/loki/config.yaml:ro
+      - lokidata:/loki
+    ports:
+      - "127.0.0.1:3100:3100"
+
+  tempo:
+    image: grafana/tempo:3.1.1
+    command: ["-target=all", "-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./platform/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempodata:/var/tempo
+    ports:
+      - "127.0.0.1:3200:3200"
+
   grafana:
     image: grafana/grafana:13.2.4
     environment:
       GF_SECURITY_ADMIN_USER: admin
+      # Required, so Grafana never starts with the default admin/admin.
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
     volumes:
       - ./platform/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -82,3 +128,5 @@ volumes:
   pgdata:
   promdata:
   grafanadata:
+  tempodata:
+  lokidata:
