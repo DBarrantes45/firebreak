@@ -18,8 +18,10 @@ OpenTelemetry Collector in the middle and Grafana on top. A request that goes
 wrong can be followed from a spike on a dashboard to its trace and its log
 lines, all in one place.
 
-Alerting, SLOs, load tests and chaos game days are next. The
-[changelog](CHANGELOG.md) tracks what has landed so far.
+On top of that sit two SLOs, one for availability and one for latency, with
+burn-rate alerts generated from a short spec. Alert routing, load tests and
+chaos game days come next; the [changelog](CHANGELOG.md) tracks what has
+landed so far.
 
 ## Quick start
 
@@ -39,13 +41,14 @@ Then open Grafana at <http://localhost:3000> and look for the
 - [Architecture](docs/architecture.md): the moving parts and how data flows between them.
 - [Run it locally](docs/how-to/run-locally.md): start, stop, reset.
 - [Endpoints and ports](docs/reference/endpoints-and-ports.md): every URL in one table.
+- [SLOs](slos/README.md) and the [error budget policy](docs/error-budget-policy.md).
 
 ## Built with
 
 [FastAPI](https://fastapi.tiangolo.com/), [PostgreSQL](https://www.postgresql.org/),
 [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/oss/grafana/),
-[Loki](https://grafana.com/oss/loki/), [Tempo](https://grafana.com/oss/tempo/) and
-[OpenTelemetry](https://opentelemetry.io/).
+[Loki](https://grafana.com/oss/loki/), [Tempo](https://grafana.com/oss/tempo/),
+[OpenTelemetry](https://opentelemetry.io/) and [Sloth](https://sloth.dev/).
 
 ## License
 

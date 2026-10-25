@@ -9,3 +9,5 @@ Mermaid; GitHub draws them for you.
 - [Run it locally](how-to/run-locally.md): the handful of commands you need
   day to day.
 - [Endpoints and ports](reference/endpoints-and-ports.md): the lookup table.
+- [Error budget policy](error-budget-policy.md): what happens when the SLO
+  budget runs low.
