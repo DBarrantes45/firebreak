@@ -8,9 +8,10 @@ groups:
   rules:
   - record: slo:sli_error:ratio_rate5m
     expr: |
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders", status=~"5.."}[5m])))
+      (sum(rate(http_requests_total{
+        job="orders-api", traffic="user", route=~"/products|/orders", status=~"5.."}[5m])))
       /
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders"}[5m])))
+      (sum(rate(http_requests_total{job="orders-api", traffic="user", route=~"/products|/orders"}[5m])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -20,9 +21,10 @@ groups:
       sloth_window: 5m
   - record: slo:sli_error:ratio_rate30m
     expr: |
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders", status=~"5.."}[30m])))
+      (sum(rate(http_requests_total{
+        job="orders-api", traffic="user", route=~"/products|/orders", status=~"5.."}[30m])))
       /
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders"}[30m])))
+      (sum(rate(http_requests_total{job="orders-api", traffic="user", route=~"/products|/orders"}[30m])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -32,9 +34,10 @@ groups:
       sloth_window: 30m
   - record: slo:sli_error:ratio_rate1h
     expr: |
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders", status=~"5.."}[1h])))
+      (sum(rate(http_requests_total{
+        job="orders-api", traffic="user", route=~"/products|/orders", status=~"5.."}[1h])))
       /
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders"}[1h])))
+      (sum(rate(http_requests_total{job="orders-api", traffic="user", route=~"/products|/orders"}[1h])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -44,9 +47,10 @@ groups:
       sloth_window: 1h
   - record: slo:sli_error:ratio_rate2h
     expr: |
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders", status=~"5.."}[2h])))
+      (sum(rate(http_requests_total{
+        job="orders-api", traffic="user", route=~"/products|/orders", status=~"5.."}[2h])))
       /
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders"}[2h])))
+      (sum(rate(http_requests_total{job="orders-api", traffic="user", route=~"/products|/orders"}[2h])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -56,9 +60,10 @@ groups:
       sloth_window: 2h
   - record: slo:sli_error:ratio_rate6h
     expr: |
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders", status=~"5.."}[6h])))
+      (sum(rate(http_requests_total{
+        job="orders-api", traffic="user", route=~"/products|/orders", status=~"5.."}[6h])))
       /
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders"}[6h])))
+      (sum(rate(http_requests_total{job="orders-api", traffic="user", route=~"/products|/orders"}[6h])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -68,9 +73,10 @@ groups:
       sloth_window: 6h
   - record: slo:sli_error:ratio_rate1d
     expr: |
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders", status=~"5.."}[1d])))
+      (sum(rate(http_requests_total{
+        job="orders-api", traffic="user", route=~"/products|/orders", status=~"5.."}[1d])))
       /
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders"}[1d])))
+      (sum(rate(http_requests_total{job="orders-api", traffic="user", route=~"/products|/orders"}[1d])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -80,9 +86,10 @@ groups:
       sloth_window: 1d
   - record: slo:sli_error:ratio_rate3d
     expr: |
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders", status=~"5.."}[3d])))
+      (sum(rate(http_requests_total{
+        job="orders-api", traffic="user", route=~"/products|/orders", status=~"5.."}[3d])))
       /
-      (sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders"}[3d])))
+      (sum(rate(http_requests_total{job="orders-api", traffic="user", route=~"/products|/orders"}[3d])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -225,14 +232,15 @@ groups:
     expr: |
       ((
         sum(rate(http_request_duration_seconds_count{
-          job="orders-api", route=~"/products|/orders", status_class="2xx"}[5m]))
+          job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[5m]))
         -
         sum(rate(http_request_duration_seconds_bucket{
-          job="orders-api", route=~"/products|/orders", status_class="2xx", le="0.25"}[5m]))
+          job="orders-api", traffic="user", route=~"/products|/orders",
+          status_class="2xx", le="0.25"}[5m]))
       ))
       /
       (sum(rate(http_request_duration_seconds_count{
-        job="orders-api", route=~"/products|/orders", status_class="2xx"}[5m])))
+        job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[5m])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -244,14 +252,15 @@ groups:
     expr: |
       ((
         sum(rate(http_request_duration_seconds_count{
-          job="orders-api", route=~"/products|/orders", status_class="2xx"}[30m]))
+          job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[30m]))
         -
         sum(rate(http_request_duration_seconds_bucket{
-          job="orders-api", route=~"/products|/orders", status_class="2xx", le="0.25"}[30m]))
+          job="orders-api", traffic="user", route=~"/products|/orders",
+          status_class="2xx", le="0.25"}[30m]))
       ))
       /
       (sum(rate(http_request_duration_seconds_count{
-        job="orders-api", route=~"/products|/orders", status_class="2xx"}[30m])))
+        job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[30m])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -263,14 +272,15 @@ groups:
     expr: |
       ((
         sum(rate(http_request_duration_seconds_count{
-          job="orders-api", route=~"/products|/orders", status_class="2xx"}[1h]))
+          job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[1h]))
         -
         sum(rate(http_request_duration_seconds_bucket{
-          job="orders-api", route=~"/products|/orders", status_class="2xx", le="0.25"}[1h]))
+          job="orders-api", traffic="user", route=~"/products|/orders",
+          status_class="2xx", le="0.25"}[1h]))
       ))
       /
       (sum(rate(http_request_duration_seconds_count{
-        job="orders-api", route=~"/products|/orders", status_class="2xx"}[1h])))
+        job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[1h])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -282,14 +292,15 @@ groups:
     expr: |
       ((
         sum(rate(http_request_duration_seconds_count{
-          job="orders-api", route=~"/products|/orders", status_class="2xx"}[2h]))
+          job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[2h]))
         -
         sum(rate(http_request_duration_seconds_bucket{
-          job="orders-api", route=~"/products|/orders", status_class="2xx", le="0.25"}[2h]))
+          job="orders-api", traffic="user", route=~"/products|/orders",
+          status_class="2xx", le="0.25"}[2h]))
       ))
       /
       (sum(rate(http_request_duration_seconds_count{
-        job="orders-api", route=~"/products|/orders", status_class="2xx"}[2h])))
+        job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[2h])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -301,14 +312,15 @@ groups:
     expr: |
       ((
         sum(rate(http_request_duration_seconds_count{
-          job="orders-api", route=~"/products|/orders", status_class="2xx"}[6h]))
+          job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[6h]))
         -
         sum(rate(http_request_duration_seconds_bucket{
-          job="orders-api", route=~"/products|/orders", status_class="2xx", le="0.25"}[6h]))
+          job="orders-api", traffic="user", route=~"/products|/orders",
+          status_class="2xx", le="0.25"}[6h]))
       ))
       /
       (sum(rate(http_request_duration_seconds_count{
-        job="orders-api", route=~"/products|/orders", status_class="2xx"}[6h])))
+        job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[6h])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -320,14 +332,15 @@ groups:
     expr: |
       ((
         sum(rate(http_request_duration_seconds_count{
-          job="orders-api", route=~"/products|/orders", status_class="2xx"}[1d]))
+          job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[1d]))
         -
         sum(rate(http_request_duration_seconds_bucket{
-          job="orders-api", route=~"/products|/orders", status_class="2xx", le="0.25"}[1d]))
+          job="orders-api", traffic="user", route=~"/products|/orders",
+          status_class="2xx", le="0.25"}[1d]))
       ))
       /
       (sum(rate(http_request_duration_seconds_count{
-        job="orders-api", route=~"/products|/orders", status_class="2xx"}[1d])))
+        job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[1d])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak
@@ -339,14 +352,15 @@ groups:
     expr: |
       ((
         sum(rate(http_request_duration_seconds_count{
-          job="orders-api", route=~"/products|/orders", status_class="2xx"}[3d]))
+          job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[3d]))
         -
         sum(rate(http_request_duration_seconds_bucket{
-          job="orders-api", route=~"/products|/orders", status_class="2xx", le="0.25"}[3d]))
+          job="orders-api", traffic="user", route=~"/products|/orders",
+          status_class="2xx", le="0.25"}[3d]))
       ))
       /
       (sum(rate(http_request_duration_seconds_count{
-        job="orders-api", route=~"/products|/orders", status_class="2xx"}[3d])))
+        job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[3d])))
     labels:
       owner: firebreak
       repo: DBarrantes45/firebreak

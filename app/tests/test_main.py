@@ -28,7 +28,10 @@ def test_chaos_rejects_rate_out_of_range(client):
 def read_counter(client, route, status):
     """Return the current value of http_requests_total for a route and status."""
     text = client.get("/metrics").text
-    prefix = f'http_requests_total{{method="GET",route="{route}",status="{status}"}} '
+    prefix = (
+        f'http_requests_total{{method="GET",route="{route}",status="{status}",'
+        'traffic="user"} '
+    )
     for line in text.splitlines():
         if line.startswith(prefix):
             return float(line[len(prefix) :])

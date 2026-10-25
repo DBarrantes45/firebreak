@@ -10,9 +10,10 @@ slos:
     sli:
       events:
         error_query: >-
-          sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders", status=~"5.."}[{{.window}}]))
+          sum(rate(http_requests_total{
+            job="orders-api", traffic="user", route=~"/products|/orders", status=~"5.."}[{{.window}}]))
         total_query: >-
-          sum(rate(http_requests_total{job="orders-api", route=~"/products|/orders"}[{{.window}}]))
+          sum(rate(http_requests_total{job="orders-api", traffic="user", route=~"/products|/orders"}[{{.window}}]))
     alerting:
       name: OrdersApiHighErrorRate
       labels:
@@ -37,14 +38,15 @@ slos:
         error_query: >-
           (
             sum(rate(http_request_duration_seconds_count{
-              job="orders-api", route=~"/products|/orders", status_class="2xx"}[{{.window}}]))
+              job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[{{.window}}]))
             -
             sum(rate(http_request_duration_seconds_bucket{
-              job="orders-api", route=~"/products|/orders", status_class="2xx", le="0.25"}[{{.window}}]))
+              job="orders-api", traffic="user", route=~"/products|/orders",
+              status_class="2xx", le="0.25"}[{{.window}}]))
           )
         total_query: >-
           sum(rate(http_request_duration_seconds_count{
-            job="orders-api", route=~"/products|/orders", status_class="2xx"}[{{.window}}]))
+            job="orders-api", traffic="user", route=~"/products|/orders", status_class="2xx"}[{{.window}}]))
     alerting:
       name: OrdersApiHighLatency
       labels:

@@ -222,3 +222,6 @@ __marimo__/
 # Alertmanager secrets (Telegram bot token and chat id)
 platform/alertmanager/secrets/*
 !platform/alertmanager/secrets/README.md
+
+# Throwaway helper scripts
+scripts/.*.sh

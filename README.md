@@ -21,7 +21,9 @@ lines, all in one place.
 On top of that sit two SLOs, one for availability and one for latency, with
 burn-rate alerts generated from a short spec. Alertmanager sends them to
 Telegram, each with a link to its runbook, and CI proves an outage actually
-raises an alert. Load tests and chaos game days come next; the
+raises an alert. Load tests measure how much traffic it takes before the
+SLOs break ([capacity report](loadtests/CAPACITY-REPORT.md)). Chaos game days
+come next; the
 [changelog](CHANGELOG.md) tracks what has landed so far.
 
 ## Quick start
@@ -50,7 +52,7 @@ Then open Grafana at <http://localhost:3000> and look for the
 [FastAPI](https://fastapi.tiangolo.com/), [PostgreSQL](https://www.postgresql.org/),
 [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/oss/grafana/),
 [Loki](https://grafana.com/oss/loki/), [Tempo](https://grafana.com/oss/tempo/),
-[OpenTelemetry](https://opentelemetry.io/) and [Sloth](https://sloth.dev/).
+[OpenTelemetry](https://opentelemetry.io/), [Sloth](https://sloth.dev/) and [k6](https://k6.io/).
 
 ## License
 
