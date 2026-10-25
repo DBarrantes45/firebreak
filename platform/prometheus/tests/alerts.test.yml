@@ -1,0 +1,88 @@
+# Unit tests for the alerting rules: synthetic series in, expected alerts out.
+# Run with: promtool test rules platform/prometheus/tests/alerts.test.yml
+rule_files:
+  - ../rules/orders-api.yml
+  - ../rules/slo-orders-api.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: OrdersApiDown waits one minute before paging
+    interval: 15s
+    input_series:
+      - series: 'up{job="orders-api", instance="api:8000"}'
+        values: '1x4 0x12'
+    alert_rule_test:
+      - eval_time: 1m30s
+        alertname: OrdersApiDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: OrdersApiDown
+        exp_alerts:
+          - exp_labels:
+              alertname: OrdersApiDown
+              job: orders-api
+              instance: api:8000
+              severity: page
+              service: orders-api
+            exp_annotations:
+              summary: "Prometheus cannot scrape orders-api: the service is down or unreachable."
+              runbook_url: "https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-down.md"
+
+  - name: 5% errors for over an hour pages
+    interval: 1m
+    input_series:
+      # 100 requests per minute, 5 of them fail: burn rate 50.
+      - series: 'http_requests_total{job="orders-api", route="/products", status="200"}'
+        values: '0+95x90'
+      - series: 'http_requests_total{job="orders-api", route="/products", status="500"}'
+        values: '0+5x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: OrdersApiHighErrorRate
+        exp_alerts:
+          - exp_labels:
+              alertname: OrdersApiHighErrorRate
+              severity: page
+              sloth_severity: page
+              category: availability
+              service: orders-api
+              owner: firebreak
+              repo: DBarrantes45/firebreak
+              sloth_id: orders-api-requests-availability
+              sloth_service: orders-api
+              sloth_slo: requests-availability
+            exp_annotations:
+              summary: "orders-api is burning its availability error budget too fast."
+              runbook_url: "https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-high-error-rate.md"
+              title: "(page) orders-api requests-availability SLO error budget burn rate is too fast."
+          # Burn rate 50 is above the ticket thresholds too; Alertmanager's
+          # inhibit rule keeps it from notifying while the page fires.
+          - exp_labels:
+              alertname: OrdersApiHighErrorRate
+              severity: ticket
+              sloth_severity: ticket
+              category: availability
+              service: orders-api
+              owner: firebreak
+              repo: DBarrantes45/firebreak
+              sloth_id: orders-api-requests-availability
+              sloth_service: orders-api
+              sloth_slo: requests-availability
+            exp_annotations:
+              summary: "orders-api is burning its availability error budget too fast."
+              runbook_url: "https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-high-error-rate.md"
+              title: "(ticket) orders-api requests-availability SLO error budget burn rate is too fast."
+
+  - name: 0.05% errors stay within budget and stay quiet
+    interval: 1m
+    input_series:
+      # 2000 requests per minute, 1 fails: burn rate 0.5, half the allowed pace.
+      - series: 'http_requests_total{job="orders-api", route="/products", status="200"}'
+        values: '0+1999x90'
+      - series: 'http_requests_total{job="orders-api", route="/products", status="500"}'
+        values: '0+1x90'
+    alert_rule_test:
+      - eval_time: 75m
+        alertname: OrdersApiHighErrorRate
+        exp_alerts: []

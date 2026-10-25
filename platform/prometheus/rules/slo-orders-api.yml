@@ -188,9 +188,11 @@ groups:
       )
     labels:
       category: availability
+      service: orders-api
       severity: page
       sloth_severity: page
     annotations:
+      runbook_url: https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-high-error-rate.md
       summary: orders-api is burning its availability error budget too fast.
       title: (page) {{$labels.sloth_service}} {{$labels.sloth_slo}} SLO error budget
         burn rate is too fast.
@@ -209,9 +211,11 @@ groups:
       )
     labels:
       category: availability
+      service: orders-api
       severity: ticket
       sloth_severity: ticket
     annotations:
+      runbook_url: https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-high-error-rate.md
       summary: orders-api is burning its availability error budget too fast.
       title: (ticket) {{$labels.sloth_service}} {{$labels.sloth_slo}} SLO error budget
         burn rate is too fast.
@@ -448,9 +452,11 @@ groups:
       )
     labels:
       category: latency
+      service: orders-api
       severity: page
       sloth_severity: page
     annotations:
+      runbook_url: https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-high-latency.md
       summary: orders-api is burning its latency error budget too fast.
       title: (page) {{$labels.sloth_service}} {{$labels.sloth_slo}} SLO error budget
         burn rate is too fast.
@@ -469,9 +475,11 @@ groups:
       )
     labels:
       category: latency
+      service: orders-api
       severity: ticket
       sloth_severity: ticket
     annotations:
+      runbook_url: https://github.com/DBarrantes45/firebreak/blob/main/runbooks/orders-api-high-latency.md
       summary: orders-api is burning its latency error budget too fast.
       title: (ticket) {{$labels.sloth_service}} {{$labels.sloth_slo}} SLO error budget
         burn rate is too fast.

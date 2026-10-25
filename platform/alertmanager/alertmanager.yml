@@ -1,0 +1,40 @@
+route:
+  receiver: telegram-ticket
+  group_by: ["alertname", "service", "sloth_slo"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+    # Pages need someone now: notify fast and remind every hour.
+    - matchers: ['severity="page"']
+      receiver: telegram-page
+      group_wait: 10s
+      repeat_interval: 1h
+
+receivers:
+  - name: telegram-page
+    telegram_configs:
+      - bot_token_file: /etc/alertmanager/secrets/telegram_bot_token
+        chat_id_file: /etc/alertmanager/secrets/telegram_chat_id
+        message: '{{ template "firebreak.telegram" . }}'
+
+  - name: telegram-ticket
+    telegram_configs:
+      - bot_token_file: /etc/alertmanager/secrets/telegram_bot_token
+        chat_id_file: /etc/alertmanager/secrets/telegram_chat_id
+        message: '{{ template "firebreak.telegram" . }}'
+        # Tickets can wait for working hours: no sound.
+        disable_notifications: true
+
+inhibit_rules:
+  # If the service is down, its SLO alerts are just noise.
+  - source_matchers: ['alertname="OrdersApiDown"']
+    target_matchers: ['alertname=~"OrdersApiHigh.*"']
+    equal: ["service"]
+  # A page already covers the same SLO's ticket.
+  - source_matchers: ['severity="page"']
+    target_matchers: ['severity="ticket"']
+    equal: ["alertname", "sloth_slo"]
+
+templates:
+  - /etc/alertmanager/templates/*.tmpl

@@ -3,6 +3,25 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-10-25
+
+Alerting: problems now reach a phone, with instructions attached.
+
+### Added
+
+- Alertmanager routing alerts to Telegram. Pages notify right away and repeat
+  every hour; tickets arrive silently.
+- Inhibition rules: a down service mutes its SLO alerts, and a page mutes
+  the ticket for the same SLO.
+- `OrdersApiDown` alert on `up == 0`, for the case where the app sends no
+  data and the SLO alerts stay silent.
+- Runbooks for every alert, linked from the alert itself.
+- Unit tests for the alerting rules with `promtool test rules`.
+- `scripts/e2e-alert.sh`, run in CI: stops the API and checks that
+  `OrdersApiDown` reaches Alertmanager, reporting the time to detect.
+- `scripts/generate-slo-rules.sh` to regenerate the Sloth rules.
+- CI checks the Alertmanager config with `amtool`.
+
 ## [0.4.0] - 2026-10-25
 
 SLOs: a clear line between "fine" and "not fine".
