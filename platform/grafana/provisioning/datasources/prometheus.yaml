@@ -1,0 +1,16 @@
+# Tells Grafana where Prometheus is. Loaded automatically at startup,
+# so nobody has to click "Add data source" by hand.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    # Fixed uid: dashboards point to the data source by this id.
+    # Without it Grafana generates a random one on every fresh start
+    # and the panels show "datasource not found".
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    # "prometheus" is the Compose service name, resolved inside the network.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
