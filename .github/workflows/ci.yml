@@ -1,0 +1,65 @@
+name: ci
+
+# Run on every pull request and on every push to main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# The workflow only needs to read the repo.
+permissions:
+  contents: read
+
+jobs:
+  # Same pre-commit hooks as on your machine: local and CI can't disagree.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install pre-commit==4.7.0
+      - run: pre-commit run --all-files --show-diff-on-failure
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            app/requirements.txt
+            app/requirements-dev.txt
+      - run: pip install -r app/requirements.txt -r app/requirements-dev.txt
+      - run: pytest -v
+
+  compose-and-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # CI has no .env; the example file gives Compose every variable it needs.
+      - run: cp .env.example .env
+      - name: Validate compose.yaml
+        run: docker compose config --quiet
+      - name: Build the api image
+        run: docker build -t firebreak-api:ci app
+      - name: Scan the image for known vulnerabilities
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.76.1 image \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+            firebreak-api:ci
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history: the scan looks at every commit, not only the last one.
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
