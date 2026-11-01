@@ -225,3 +225,4 @@ platform/alertmanager/secrets/*
 
 # Throwaway helper scripts
 scripts/.*.sh
+scripts/.*.py
