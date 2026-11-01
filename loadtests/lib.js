@@ -4,7 +4,11 @@ import { check } from "k6";
 export const BASE_URL = __ENV.BASE_URL || "http://localhost:8000";
 
 // Marks every request as load test traffic, so the SLOs leave it out.
-const HEADERS = { "Content-Type": "application/json", "X-Load-Test": "k6" };
+// Game days set COUNT_AS_USER=true: there the whole point is that it counts.
+const HEADERS =
+  __ENV.COUNT_AS_USER === "true"
+    ? { "Content-Type": "application/json" }
+    : { "Content-Type": "application/json", "X-Load-Test": "k6" };
 
 // One "user action": four product reads for every order, like real shopping.
 export function shop() {

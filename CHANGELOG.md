@@ -3,6 +3,22 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-10-27
+
+Chaos game days: break one thing at a time and time the response.
+
+### Added
+
+- Six game days in `gamedays/` (errors, latency, memory leak, database down,
+  frozen and behind a slow network), each with a hypothesis, blast radius,
+  rollback and measured results. The README has the summary table.
+- `scripts/gameday.sh GD-0N [--silence]` runs one end to end: steady k6
+  traffic counted as user traffic, injection, wait for the page, rollback,
+  then prints MTTD and MTTR. Every run is also logged to `gamedays/runs/`.
+- Blameless postmortem template and the first postmortem, about the database
+  outage that went unnoticed (fixed in 0.5.1).
+- shellcheck in pre-commit.
+
 ## [0.6.0] - 2026-10-25
 
 Load and capacity: how much traffic before the SLOs break.

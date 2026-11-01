@@ -21,3 +21,8 @@ repos:
     rev: v2.15.1
     hooks:
       - id: hadolint-docker
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
