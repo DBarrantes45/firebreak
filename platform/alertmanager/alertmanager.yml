@@ -5,13 +5,29 @@ route:
   group_interval: 5m
   repeat_interval: 12h
   routes:
+    # Every alert also goes to n8n for an LLM summary. "continue" keeps
+    # matching below, so Telegram still gets it directly: if n8n is down
+    # (or not started, it's behind a profile), no alert is lost.
+    - receiver: n8n
+      continue: true
+      group_wait: 10s
     # Pages need someone now: notify fast and remind every hour.
     - matchers: ['severity="page"']
       receiver: telegram-page
       group_wait: 10s
       repeat_interval: 1h
+    # Explicit, because the n8n route above already matched: without this,
+    # tickets would never fall back to the default receiver.
+    - receiver: telegram-ticket
 
 receivers:
+  - name: n8n
+    webhook_configs:
+      # Summary to Telegram.
+      - url: http://n8n:5678/webhook/alertmanager
+      # Guarded auto-restart; decides on its own which alerts it may act on.
+      - url: http://n8n:5678/webhook/alertmanager-remediation
+
   - name: telegram-page
     telegram_configs:
       - bot_token_file: /etc/alertmanager/secrets/telegram_bot_token

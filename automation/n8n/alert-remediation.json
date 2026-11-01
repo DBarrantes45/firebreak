@@ -1,0 +1,311 @@
+{
+  "id": "Rm7Qk2Lp9Xw4Vb1N",
+  "name": "Alert remediation",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "7c2e9d10-3b4a-4f5e-9a8b-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "7c2e9d10-3b4a-4f5e-9a8b-0000000000aa",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alertmanager-remediation",
+        "options": {}
+      }
+    },
+    {
+      "id": "7c2e9d10-3b4a-4f5e-9a8b-000000000002",
+      "name": "Guardrails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Every rule that decides whether the bot may touch anything lives here.\n// The LLM is not involved: this is plain code you can read and test.\nconst ALLOWED_ALERTS = [\"OrdersApiDown\"];\nconst SERVICE = \"orders-api\";\nconst CONTAINER = \"firebreak-api-1\";\nconst MAX_ATTEMPTS = 2;\nconst WINDOW_MS = 60 * 60 * 1000;\nconst COOLDOWN_MS = 5 * 60 * 1000;\n// Set on import from FIREBREAK_REMEDIATION_DRY_RUN (default true).\nconst DRY_RUN = __REMEDIATION_DRY_RUN__;\n\nconst body = $json.body || {};\nconst labels = body.commonLabels || {};\nconst annotations = body.commonAnnotations || {};\nconst decision = {\n  alertname: labels.alertname || \"unknown\",\n  status: body.status || \"unknown\",\n  container: CONTAINER,\n  max_attempts: MAX_ATTEMPTS,\n  runbook_url: annotations.runbook_url || \"\",\n};\n\nconst allowed = decision.status === \"firing\"\n  && ALLOWED_ALERTS.includes(decision.alertname)\n  && labels.service === SERVICE;\nif (!allowed) {\n  return { json: { ...decision, action: \"ignore\", reason: \"not on the allowlist\" } };\n}\n\n// Survives between executions, but only when the workflow is published.\nconst state = $getWorkflowStaticData(\"global\");\nconst now = Date.now();\nstate.attempts = (state.attempts || []).filter((t) => now - t < WINDOW_MS);\n\nif (state.attempts.length >= MAX_ATTEMPTS) {\n  return { json: { ...decision, action: \"escalate\", attempt: state.attempts.length } };\n}\n\nconst last = state.attempts[state.attempts.length - 1];\nif (last && now - last < COOLDOWN_MS) {\n  return { json: { ...decision, action: \"skip\", reason: \"cooling down after the last attempt\" } };\n}\n\n// Dry runs count as attempts too, so the limit can be tested safely.\nstate.attempts.push(now);\nreturn {\n  json: { ...decision, action: DRY_RUN ? \"dry_run\" : \"restart\", attempt: state.attempts.length },\n};"
+      }
+    },
+    {
+      "id": "7c2e9d10-3b4a-4f5e-9a8b-000000000003",
+      "name": "Route by action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-restart",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "restart",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "restart"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-dry_run",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "dry_run",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "dry_run"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "route-escalate",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "escalate",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "escalate"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7c2e9d10-3b4a-4f5e-9a8b-000000000004",
+      "name": "Restart container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        680,
+        -200
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "=http://docker-proxy:2375/containers/{{ $json.container }}/restart?t=10",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "7c2e9d10-3b4a-4f5e-9a8b-000000000005",
+      "name": "Log restart",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        920,
+        -280
+      ],
+      "parameters": {
+        "chatId": "__TELEGRAM_CHAT_ID__",
+        "text": "=🔧 Restarted {{ $('Guardrails').item.json.container }} because of {{ $('Guardrails').item.json.alertname }} (attempt {{ $('Guardrails').item.json.attempt }} of {{ $('Guardrails').item.json.max_attempts }} this hour). Docker answered HTTP {{ $json.statusCode }}. If the alert does not resolve, I try again after 5 minutes.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "__TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "7c2e9d10-3b4a-4f5e-9a8b-000000000006",
+      "name": "Restart failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        920,
+        -120
+      ],
+      "parameters": {
+        "chatId": "__TELEGRAM_CHAT_ID__",
+        "text": "=🚨 I tried to restart {{ $('Guardrails').item.json.container }} for {{ $('Guardrails').item.json.alertname }} but Docker refused: {{ $json.error.message }}\nA human needs to look.\n\n📖 Runbook: {{ $('Guardrails').item.json.runbook_url }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "__TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "7c2e9d10-3b4a-4f5e-9a8b-000000000007",
+      "name": "Log dry run",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        0
+      ],
+      "parameters": {
+        "chatId": "__TELEGRAM_CHAT_ID__",
+        "text": "=🧪 DRY RUN: I would restart {{ $json.container }} because of {{ $json.alertname }} (attempt {{ $json.attempt }} of {{ $json.max_attempts }} this hour). Nothing was changed.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "__TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "7c2e9d10-3b4a-4f5e-9a8b-000000000008",
+      "name": "Escalate",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        680,
+        200
+      ],
+      "parameters": {
+        "chatId": "__TELEGRAM_CHAT_ID__",
+        "text": "=🚨 {{ $json.alertname }} is still firing after {{ $json.max_attempts }} automatic restarts in the last hour. Restarting is not fixing it: a human needs to look.\n\n📖 Runbook: {{ $json.runbook_url }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "telegramApi": {
+          "id": "__TELEGRAM_CREDENTIAL_ID__",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Guardrails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardrails": {
+      "main": [
+        [
+          {
+            "node": "Route by action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by action": {
+      "main": [
+        [
+          {
+            "node": "Restart container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log dry run",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Escalate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restart container": {
+      "main": [
+        [
+          {
+            "node": "Log restart",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Restart failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
