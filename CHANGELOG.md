@@ -3,6 +3,15 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.9.0](https://github.com/DBarrantes45/firebreak/compare/v0.8.0...v0.9.0) (2026-11-02)
+
+
+### Added
+
+* automated releases with release-please and the api image published to GHCR ([767bede](https://github.com/DBarrantes45/firebreak/commit/767bedecf808d8d8f5244a6c45d743e805b4e15b))
+* **ci:** Dependabot for actions, pip, the base image and compose images ([767bede](https://github.com/DBarrantes45/firebreak/commit/767bedecf808d8d8f5244a6c45d743e805b4e15b))
+* **ci:** pipeline with job graph, image built once and actions pinned by SHA ([767bede](https://github.com/DBarrantes45/firebreak/commit/767bedecf808d8d8f5244a6c45d743e805b4e15b))
+
 ## [0.8.0] - 2026-11-01
 
 Incident automation: n8n and a local LLM take the first minutes of an
