@@ -3,6 +3,22 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.10.0](https://github.com/DBarrantes45/firebreak/compare/v0.9.0...v0.10.0) (2026-11-02)
+
+
+### Added
+
+* **k8s:** run orders-api on Kubernetes with its own Helm chart and kube-prometheus-stack ([#24](https://github.com/DBarrantes45/firebreak/issues/24)) ([0316dd4](https://github.com/DBarrantes45/firebreak/commit/0316dd49d8ac74a00aa4d68d81bd63f49530b4e6))
+
+
+### Dependencies
+
+* bump grafana/grafana from 13.2.4 to 13.3.0 ([#12](https://github.com/DBarrantes45/firebreak/issues/12)) ([b900d2a](https://github.com/DBarrantes45/firebreak/commit/b900d2a6a532858e3d8d37a29e152088d69fa756))
+* bump otel/opentelemetry-collector-contrib from 0.163.2 to 0.164.0 ([#15](https://github.com/DBarrantes45/firebreak/issues/15)) ([c8feaf9](https://github.com/DBarrantes45/firebreak/commit/c8feaf9411c82b8cc36e5ba06a4ac38b8949e17b))
+* bump prom/alertmanager from v0.34.1 to v0.34.2 ([#14](https://github.com/DBarrantes45/firebreak/issues/14)) ([ef3c155](https://github.com/DBarrantes45/firebreak/commit/ef3c15545022a7c41ca0307844d72dd302dd5ff5))
+* bump pytest from 9.1.1 to 9.2.0 in /app in the python group ([#16](https://github.com/DBarrantes45/firebreak/issues/16)) ([ba815b3](https://github.com/DBarrantes45/firebreak/commit/ba815b36df5fe54c8888eb30ea947c1d4680e251))
+* bump python from 3.12.15-slim to 3.12.16-slim in /app ([#13](https://github.com/DBarrantes45/firebreak/issues/13)) ([97f8162](https://github.com/DBarrantes45/firebreak/commit/97f8162508924a96fce2af33bcb765e4aa5b88ed))
+
 ## [0.9.0](https://github.com/DBarrantes45/firebreak/compare/v0.8.0...v0.9.0) (2026-11-02)
 
 
