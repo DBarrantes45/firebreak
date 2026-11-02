@@ -20,6 +20,15 @@ def test_probes_ignore_chaos(client):
     assert response.status_code == 200
 
 
+def test_readiness_fail_leaves_liveness_alone(client):
+    # The whole point of the experiment: not ready, but alive, so Kubernetes
+    # takes the pod out of the Service without restarting it.
+    client.post("/admin/chaos", json={"readiness_fail": True})
+    assert client.get("/readyz").status_code == 503
+    assert client.get("/healthz").status_code == 200
+    client.post("/admin/chaos", json={})
+
+
 def test_chaos_rejects_rate_out_of_range(client):
     response = client.post("/admin/chaos", json={"error_rate": 1.5})
     assert response.status_code == 400

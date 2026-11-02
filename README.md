@@ -28,7 +28,11 @@ game days check that each kind of failure actually pages someone.
 An optional automation layer takes the first minutes of an incident: n8n
 asks a local LLM (Ollama, on the GPU) for a plain-language summary of each
 alert, and restarts the API on its own when it dies, behind fixed guardrails.
-The [changelog](CHANGELOG.md) tracks what has landed so far.
+
+The same app also runs on Kubernetes with its own Helm chart and
+kube-prometheus-stack, where the health probes stop being informative and start
+acting: a pod that can't serve leaves the Service, one that hangs gets
+restarted. The [changelog](CHANGELOG.md) tracks what has landed so far.
 
 ## Quick start
 
@@ -100,6 +104,7 @@ shows.
 
 - [Architecture](docs/architecture.md): the moving parts and how data flows between them.
 - [Run it locally](docs/how-to/run-locally.md): start, stop, reset.
+- [Run it on Kubernetes](docs/how-to/run-on-kubernetes.md): kind, the Helm chart and kube-prometheus-stack.
 - [Endpoints and ports](docs/reference/endpoints-and-ports.md): every URL in one table.
 - [SLOs](slos/README.md) and the [error budget policy](docs/error-budget-policy.md).
 - [Runbooks](runbooks/): what to do when each alert fires.
@@ -110,7 +115,9 @@ shows.
 [FastAPI](https://fastapi.tiangolo.com/), [PostgreSQL](https://www.postgresql.org/),
 [Prometheus](https://prometheus.io/), [Grafana](https://grafana.com/oss/grafana/),
 [Loki](https://grafana.com/oss/loki/), [Tempo](https://grafana.com/oss/tempo/),
-[OpenTelemetry](https://opentelemetry.io/), [Sloth](https://sloth.dev/) and [k6](https://k6.io/).
+[OpenTelemetry](https://opentelemetry.io/), [Sloth](https://sloth.dev/), [k6](https://k6.io/),
+[kind](https://kind.sigs.k8s.io/), [Helm](https://helm.sh/) and
+[kube-prometheus-stack](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack).
 
 ## License
 

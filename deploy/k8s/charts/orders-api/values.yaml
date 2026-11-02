@@ -1,0 +1,54 @@
+# Two replicas, so a pod that stops being ready doesn't take the service down.
+replicaCount: 2
+
+image:
+  # Published by the release workflow on every release.
+  repository: ghcr.io/dbarrantes45/firebreak-api
+  # Empty means .Chart.AppVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Same rule as in Compose: off unless someone turns it on.
+chaos:
+  enabled: false
+
+database:
+  host: orders-db
+  name: orders
+  user: orders
+  # Secret created by hand (see deploy/k8s/postgres.yaml); its
+  # POSTGRES_PASSWORD key is the only place the password lives.
+  passwordSecret: orders-db
+
+# There is no OpenTelemetry Collector in the cluster yet; without this the SDK
+# would keep failing to export. Prometheus metrics at /metrics still work.
+otel:
+  enabled: false
+
+# From the phase 6 capacity report: ~70 MB idle, 176-187 MB after a traffic
+# burst (Python keeps memory it reserved), and the CPU is the bottleneck at
+# ~300 rps per core.
+resources:
+  requests:
+    # Normal lab traffic (5-20 rps) uses a small slice of a core.
+    cpu: 250m
+    # What the API holds after a burst, so the scheduler reserves it.
+    memory: 192Mi
+  limits:
+    # Twice the post-burst size: room for a spike, but a leak still hits the
+    # wall instead of eating the node.
+    memory: 384Mi
+    # No CPU limit on purpose: it throttles even when the node has idle CPU,
+    # which shows up as latency the SLOs count against us.
+
+service:
+  port: 80
+
+# Both need the Prometheus Operator's CRDs (kube-prometheus-stack).
+serviceMonitor:
+  enabled: true
+  interval: 15s
+
+# The same rules as Compose, from files/rules/ (see scripts/sync-k8s-rules.sh).
+prometheusRules:
+  enabled: true

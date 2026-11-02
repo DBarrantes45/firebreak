@@ -33,6 +33,7 @@ LOG_EXTRA_FIELDS = [
     "latency_ms",
     "latency_rate",
     "leak_mb_per_request",
+    "readiness_fail",
 ]
 
 
@@ -167,6 +168,12 @@ def healthz():
 
 @app.get("/readyz")
 def readyz(response: Response):
+    # Chaos can fail readiness alone, with the process perfectly alive: the pod
+    # should leave the Service without being restarted.
+    if chaos_settings["readiness_fail"]:
+        response.status_code = 503
+        return {"status": "unavailable"}
+
     try:
         connection = acquire_connection()
         try:
@@ -251,6 +258,7 @@ chaos_settings = {
     "latency_ms": 0,  # extra delay for slow requests
     "latency_rate": 0.0,  # fraction of requests that are slow
     "leak_mb_per_request": 0,  # memory kept forever on every request
+    "readiness_fail": False,  # /readyz answers 503; /healthz stays fine
 }
 
 leaked_memory = []
@@ -263,6 +271,7 @@ class ChaosSettings(BaseModel):
     latency_ms: int = 0
     latency_rate: float = 0.0
     leak_mb_per_request: int = 0
+    readiness_fail: bool = False
 
 
 @app.middleware("http")
@@ -317,6 +326,7 @@ if CHAOS_ENABLED:
         chaos_settings["latency_ms"] = new_settings.latency_ms
         chaos_settings["latency_rate"] = new_settings.latency_rate
         chaos_settings["leak_mb_per_request"] = new_settings.leak_mb_per_request
+        chaos_settings["readiness_fail"] = new_settings.readiness_fail
         logger.warning("chaos settings changed", extra=dict(chaos_settings))
         return chaos_settings
 

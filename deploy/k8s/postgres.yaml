@@ -1,0 +1,93 @@
+# The database for orders-api inside the cluster. Not a production database
+# and not meant to be one: in this lab the app is the victim.
+#
+# Needs the namespace and the password Secret first; the password never lives
+# in a file:
+#   kubectl create namespace firebreak
+#   kubectl -n firebreak create secret generic orders-db \
+#     --from-literal=POSTGRES_PASSWORD="$(openssl rand -base64 24)"
+#   kubectl apply -f deploy/k8s/postgres.yaml
+
+# Headless (no cluster IP): the name orders-db resolves straight to the pod,
+# which is what a StatefulSet expects.
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders-db
+  namespace: firebreak
+  labels:
+    app.kubernetes.io/name: orders-db
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: orders-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+# A StatefulSet, not a Deployment: the pod keeps its name (orders-db-0) and,
+# above all, its volume when it restarts or moves.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: orders-db
+  namespace: firebreak
+  labels:
+    app.kubernetes.io/name: orders-db
+spec:
+  serviceName: orders-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: orders-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: orders-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: orders
+            - name: POSTGRES_DB
+              value: orders
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orders-db
+                  key: POSTGRES_PASSWORD
+          # Postgres 18 keeps its data under /var/lib/postgresql (it used to
+          # be /var/lib/postgresql/data).
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "orders", "-d", "orders"]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "orders", "-d", "orders"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          # Same ceiling as in compose.yaml.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
