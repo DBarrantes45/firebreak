@@ -89,7 +89,7 @@ services:
       retries: 3
 
   alertmanager:
-    image: prom/alertmanager:v0.34.1
+    image: prom/alertmanager:v0.34.2
     volumes:
       - ./platform/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - ./platform/alertmanager/templates:/etc/alertmanager/templates:ro
