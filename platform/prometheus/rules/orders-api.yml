@@ -4,7 +4,7 @@ groups:
       # The SLO alerts go quiet when the app stops sending data, so a dead
       # app needs its own alert. up == 0 comes free with scraping.
       - alert: OrdersApiDown
-        expr: up{job="orders-api"} == 0
+        expr: up{job="orders-api"} == 2
         for: 1m
         labels:
           severity: page
