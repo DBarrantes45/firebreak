@@ -24,10 +24,14 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pre-commit==4.7.0
+      # The gitleaks hook scans staged changes, and CI has nothing staged: it
+      # would always pass. The secrets job below is the check that counts.
       - run: pre-commit run --all-files --show-diff-on-failure
+        env:
+          SKIP: gitleaks
 
-  # The pre-commit hook only sees today's files; this scans every commit,
-  # because a secret deleted later is still public in the history.
+  # The pre-commit hook guards commits on your machine; this scans every
+  # commit in CI, because a secret deleted later is still in the history.
   secrets:
     runs-on: ubuntu-latest
     steps:
