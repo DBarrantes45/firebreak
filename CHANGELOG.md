@@ -3,6 +3,34 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-11-01
+
+Incident automation: n8n and a local LLM take the first minutes of an
+incident.
+
+### Added
+
+- Ollama (`qwen3:8b` on the GPU), n8n and a Docker socket proxy behind the
+  `automation` Compose profile. CI and the default `up` don't start them.
+- Alert summary workflow: an LLM summary and the runbook link for every
+  alert, with the raw alert as a fallback when Ollama doesn't answer.
+- Alert remediation workflow: restarts `orders-api` on `OrdersApiDown`
+  through the proxy, with an allowlist, two attempts per hour, crash loop
+  escalation and dry run on by default.
+- `scripts/n8n-import.sh` loads the workflows and fills in the Telegram chat
+  id and credential from the local setup, so nothing private is in the repo.
+- `HANDS_OFF=1` for `scripts/gameday.sh`: no rollback, wait for the
+  automation. GD-03 rerun: the bot restarted the API 7 seconds after the
+  alert (MTTR 115 s).
+
+### Changed
+
+- Alertmanager sends every alert to n8n as well as straight to Telegram.
+
+### Fixed
+
+- `.env.example` had two lines glued together, which left chaos disabled.
+
 ## [0.7.0] - 2026-10-27
 
 Chaos game days: break one thing at a time and time the response.

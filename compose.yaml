@@ -162,6 +162,63 @@ services:
       retries: 5
       start_period: 20s
 
+  ollama:
+    image: ollama/ollama:0.40.13
+    profiles: [automation]
+    volumes:
+      - ollama-models:/root/.ollama
+    # No ports: only n8n talks to it, over the Compose network.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  n8n:
+    image: n8nio/n8n:2.45.7
+    profiles: [automation]
+    environment:
+      GENERIC_TIMEZONE: America/Costa_Rica
+      TZ: America/Costa_Rica
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+    # The volume also holds the key that encrypts saved credentials:
+    # losing it means re-entering every credential.
+    volumes:
+      - n8n-data:/home/node/.n8n
+    # Loopback only: the editor is reachable from this PC, not the home network.
+    ports:
+      - "127.0.0.1:5678:5678"
+    networks: [default, docker-api]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5678/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  # Lets n8n restart containers without handing it the Docker socket, which
+  # would be root on the host. Only the restart family of calls is allowed
+  # (ALLOW_RESTARTS also covers stop and kill), and it lives on an internal
+  # network shared with n8n alone. Never publish its port.
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0
+    profiles: [automation]
+    # Required by the image to open the socket under AppArmor/SELinux.
+    privileged: true
+    environment:
+      CONTAINERS: 1
+      POST: 1
+      ALLOW_RESTARTS: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [docker-api]
+
+networks:
+  docker-api:
+    internal: true
+
 volumes:
   pgdata:
   promdata:
@@ -169,3 +226,5 @@ volumes:
   tempodata:
   lokidata:
   alertmanagerdata:
+  ollama-models:
+  n8n-data:

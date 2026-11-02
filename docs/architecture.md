@@ -38,6 +38,16 @@ flowchart LR
     GRAF --> TEMPO
     PROM -- alerts --> AM
     AM --> TG
+    subgraph auto["Automation (profile: automation)"]
+        N8N["n8n"]
+        OLL["Ollama<br/>GPU"]
+        PX["docker-socket-proxy"]
+    end
+    AM -- webhook --> N8N
+    N8N -- summarize --> OLL
+    N8N --> TG
+    N8N -- "restart only" --> PX
+    PX -. restarts .-> API
 ```
 
 The app speaks one protocol, OTLP, to one place, the Collector. The Collector
@@ -52,6 +62,17 @@ the SLO alerts can't see (no data at all). Firing alerts go to Alertmanager,
 which groups them, silences the ones that add nothing (a dead service makes
 its SLO alerts pointless) and sends them to Telegram. Pages ring; tickets
 arrive silently. Every alert links to its runbook in [`runbooks/`](../runbooks).
+
+## Incident automation
+
+Alertmanager also hands every alert to n8n, which runs two workflows. The
+first asks Ollama, a local LLM on the GPU, for a three-line summary and
+sends it to Telegram with the runbook link; the link comes from the alert,
+never from the model. The second restarts `orders-api` when it is down. All
+its rules sit in one code node: an allowlist, two attempts an hour, crash
+loop detection and a dry-run switch. It reaches Docker through a socket
+proxy on an internal network that only allows restarts, because mounting
+the socket itself would give n8n root on the host.
 
 ## How each signal travels
 

@@ -72,3 +72,53 @@ docker compose up -d --wait api   # starts a fresh process: the leak is gone
   has no restart policy. Adding `restart: unless-stopped` is the obvious
   fix, but then an OOM loop would hide from `OrdersApiDown` and only show
   up as errors. Open question, not changed yet.
+
+## Rerun with automation (phase 8)
+
+**Date:** 2026-11-01 · run with `HANDS_OFF=1 scripts/gameday.sh GD-03`: no
+human rollback, the n8n remediation workflow is live (dry run off).
+
+| Mark | Time |
+| :--- | :--- |
+| Injection started | 17:59:40 |
+| Alert received (detection) | 18:01:27 |
+| Mitigation applied (bot restarts the API via docker-proxy, HTTP 204) | 18:01:34 |
+| Service healthy again (recovery) | 18:01:35 |
+
+**MTTD:** 107 s · **MTTR:** 115 s
+
+- The bot reacted 7 seconds after the alert. Almost all of the MTTR is
+  detection: `OrdersApiDown` waits a full minute (`for: 1m`) on purpose.
+- The phase 7 run looks similar (~150 s), but there the "human" was the
+  script acting the instant the alert fired. A real person needs minutes to
+  see the phone and get to a laptop, more at night.
+- Restarting really fixes it here because the chaos settings live in the
+  API's memory. A real leak would come back, which is why the bot counts.
+
+### What a second crash taught
+
+A follow-up run crashed the API again 3 minutes after the bot's restart,
+and nothing restarted it:
+
+- Alertmanager held the new notification for `group_interval` (5 minutes),
+  because it belonged to the same alert group.
+- Even on time, the bot would have answered "cooling down" and skipped. With
+  pages repeating only every hour, that skip meant an hour of downtime.
+
+The bot treated "it crashed again right after my restart" as a repeated
+notification. They are different things. The workflow now tells them apart
+by the alert's `startsAt`: the same incident is skipped, but a new incident
+inside the 5-minute cooldown is a crash loop and escalates to a human. Proven
+in dry run: first incident → would restart, repeat → skipped, new incident
+right away → escalated.
+
+### Docker's restart policy instead
+
+`restart: unless-stopped` was tried through a temporary override. In one run
+Docker restarted the API in under 10 seconds, and `OrdersApiDown` never got
+the chance to fire: faster, but nobody hears about it. In the other run the
+OOM-killed container stayed down with zero restarts, and a minimal OOM test
+outside Compose restarted fine. That run is unexplained, so the policy is
+not adopted: the bot restarts and leaves a record, and a crash loop reaches
+a human either way.
+
