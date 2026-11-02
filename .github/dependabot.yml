@@ -1,0 +1,48 @@
+version: 2
+
+# Dependabot already waits 3 days before proposing a new version (not for
+# security fixes): most compromised releases are pulled within that window.
+updates:
+  # Keeps the SHA pins in the workflows current, version comment included.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # app/requirements.txt is compiled from requirements.in with pip-compile;
+  # Dependabot updates both.
+  - package-ecosystem: pip
+    directory: /app
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: deps
+    groups:
+      python:
+        update-types: [minor, patch]
+
+  # The api base image. Only Python patch releases: moving to 3.13 is a
+  # decision, not a routine update.
+  - package-ecosystem: docker
+    directory: /app
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: deps
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  # One PR per image on purpose: a new Prometheus or Grafana can break rules
+  # or dashboards, and CI should show which upgrade did it.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: deps
