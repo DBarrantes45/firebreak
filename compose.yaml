@@ -142,7 +142,7 @@ services:
       - "127.0.0.1:3200:3200"
 
   grafana:
-    image: grafana/grafana:13.2.4
+    image: grafana/grafana:13.3.0
     environment:
       GF_SECURITY_ADMIN_USER: admin
       # Required, so Grafana never starts with the default admin/admin.
