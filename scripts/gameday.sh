@@ -4,6 +4,7 @@
 #   scripts/gameday.sh GD-01            alert reaches Telegram, like a real incident
 #   scripts/gameday.sh GD-01 --silence  alert only reaches Alertmanager
 #   WARMUP_SECONDS=1200 scripts/gameday.sh GD-01   healthy traffic first
+#   HANDS_OFF=1 scripts/gameday.sh GD-03   no rollback: wait for the automation
 #
 # Steps: start traffic, inject the failure, wait for the expected alert,
 # roll back (playing the responder), wait until the service is healthy,
@@ -22,6 +23,11 @@ silence="${2:-}"
 # Latency alerts need the 1h window to fill up; see GD-06 findings.
 alert_timeout=1200
 health_timeout=180
+hands_off="${HANDS_OFF:-0}"
+if [ "$hands_off" = 1 ]; then
+    # The automation needs time to notice, retry and cool down.
+    health_timeout=600
+fi
 # Healthy traffic before the injection. SLO alerts compare against the last
 # hour, so a run straight after another one alerts unrealistically fast.
 warmup_seconds="${WARMUP_SECONDS:-30}"
@@ -117,9 +123,14 @@ t_alert=$(date +%T); s_alert=$SECONDS
 echo "$t_alert  $expected fired"
 
 echo "api container: $(docker inspect firebreak-api-1 -f '{{.State.Status}}, OOMKilled={{.State.OOMKilled}}')"
-t_rollback=$(date +%T)
-echo "$t_rollback  rolling back"
-rollback
+if [ "$hands_off" = 1 ]; then
+    t_rollback="by the automation"
+    echo "$(date +%T)  hands off: waiting for the automation to fix it"
+else
+    t_rollback=$(date +%T)
+    echo "$t_rollback  rolling back"
+    rollback
+fi
 
 until service_healthy; do
     if [ $((SECONDS - s_alert)) -ge "$health_timeout" ]; then

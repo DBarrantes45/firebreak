@@ -12,6 +12,10 @@ rest of your network.
 | Loki | <http://localhost:3100/ready> | LogQL over HTTP |
 | Alertmanager | <http://localhost:9093> | Active alerts and silences |
 | PostgreSQL | `localhost:5432` | Credentials in `.env` |
+| n8n | <http://localhost:5678> | Only with `--profile automation`. Owner account created on first visit |
+
+Ollama and the Docker socket proxy publish no port at all: only n8n talks to
+them, over the Compose network.
 
 ## orders-api
 
