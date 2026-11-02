@@ -1,0 +1,20 @@
+{{- if .Values.prometheusRules.enabled }}
+{{- /*
+One PrometheusRule per rule file in files/rules/. Those files are copies of
+platform/prometheus/rules/, made by scripts/sync-k8s-rules.sh; CI fails if
+they drift, so Compose and the cluster always run the same alerts.
+*/}}
+{{- range $path, $_ := .Files.Glob "files/rules/*.yml" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ $.Release.Name }}-{{ base $path | trimSuffix ".yml" }}
+  labels:
+    {{- include "orders-api.labels" $ | nindent 4 }}
+spec:
+  {{- /* Parsed and re-emitted: the files carry document markers and comments. */}}
+  groups:
+    {{- ($.Files.Get $path | fromYaml).groups | toYaml | nindent 4 }}
+{{- end }}
+{{- end }}

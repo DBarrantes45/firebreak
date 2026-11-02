@@ -1,0 +1,22 @@
+{{- if .Values.serviceMonitor.enabled }}
+# Tells the Prometheus Operator to scrape this Service. In Compose the target
+# list lived in prometheus.yml; here pod IPs change, so the Operator follows
+# the Service instead.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "orders-api.labels" . | nindent 4 }}
+spec:
+  # Matches the Service's labels, not the pods'.
+  selector:
+    matchLabels:
+      {{- include "orders-api.selectorLabels" . | nindent 6 }}
+  endpoints:
+    # The Service port's name, not a number. The job label becomes the
+    # Service name, orders-api, which is what the alert rules select.
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+{{- end }}

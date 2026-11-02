@@ -81,6 +81,11 @@ jobs:
           scripts/generate-slo-rules.sh
           git diff --exit-code platform/prometheus/rules/ \
             || { echo "Rules are stale: run scripts/generate-slo-rules.sh and commit"; exit 1; }
+      - name: The Helm chart carries the same rules as Compose
+        run: |
+          scripts/sync-k8s-rules.sh
+          git diff --exit-code deploy/k8s/charts/orders-api/files/rules/ \
+            || { echo "Chart rules drifted: run scripts/sync-k8s-rules.sh and commit"; exit 1; }
       - name: Check the alerting and recording rules with promtool
         run: |
           docker run --rm --entrypoint promtool \
@@ -102,6 +107,44 @@ jobs:
           for file in platform/grafana/dashboards/*.json automation/n8n/*.json; do
             python3 -m json.tool "$file" > /dev/null && echo "OK: $file"
           done
+
+  # helm lint checks the chart's structure; kubeconform checks that what it
+  # renders is valid Kubernetes, for the cluster's version and the next one up.
+  k8s-validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        k8s: ["1.36", "1.37"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310  # v5.0.1
+        with:
+          version: v3.19.5
+      - name: Install kubeconform (checksum verified)
+        run: |
+          curl -fsSLO https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz
+          echo "9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883  kubeconform-linux-amd64.tar.gz" \
+            | sha256sum -c
+          tar -xzf kubeconform-linux-amd64.tar.gz kubeconform
+          sudo install kubeconform /usr/local/bin/
+      - run: helm lint deploy/k8s/charts/orders-api
+      # -strict rejects unknown fields, which is where a misspelt
+      # readinessProbe hides; ServiceMonitor and PrometheusRule schemas come
+      # from the Datree CRD catalog.
+      - name: Validate the rendered manifests
+        env:
+          CRD_SCHEMAS: >-
+            https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+        run: |
+          helm template orders-api deploy/k8s/charts/orders-api \
+            | kubeconform -strict -summary \
+                -kubernetes-version "${{ matrix.k8s }}.0" \
+                -schema-location default \
+                -schema-location "$CRD_SCHEMAS"
+      - name: Validate the plain manifests
+        run: |
+          kubeconform -strict -summary -kubernetes-version "${{ matrix.k8s }}.0" \
+            -ignore-filename-pattern 'kind-config|monitoring-values' deploy/k8s/*.yaml
 
   build:
     needs: [lint, test, validate-config]

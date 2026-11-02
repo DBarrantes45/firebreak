@@ -1,0 +1,50 @@
+# Values for kube-prometheus-stack 92.14.1 (the newest release older than the
+# 3-day cooldown Dependabot uses here). Install with:
+#   kubectl create namespace monitoring
+#   kubectl -n monitoring create secret generic grafana-admin \
+#     --from-literal=admin-user=admin \
+#     --from-literal=admin-password="$(openssl rand -base64 24)"
+#   helm upgrade --install kps \
+#     oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
+#     --version 92.14.1 -n monitoring -f deploy/k8s/monitoring-values.yaml
+# Always pass --version: helm upgrade never updates the chart's CRDs, so a
+# version jump has to be a deliberate step.
+
+grafana:
+  # Never the chart's default password: Grafana reads it from a Secret
+  # created by hand, so it lives in no file.
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+prometheus:
+  prometheusSpec:
+    # By default this Prometheus only picks up ServiceMonitors and rules
+    # labelled release=kps, and silently ignores the rest. With a single
+    # Prometheus in the cluster, discovering everything removes that trap;
+    # a shared cluster would scope it with labels instead.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    # A lab cluster lives for a session or two.
+    retention: 2d
+
+# kind binds these control-plane metrics to 127.0.0.1 inside the node
+# container, so Prometheus can never reach them and their alerts would fire
+# forever. An alert that always fires teaches you to ignore alerts.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+defaultRules:
+  disabled:
+    # On WSL2 the boot time drifts, so Go processes report a new
+    # process_start_time_seconds every scrape and this rule sees a crash loop
+    # with zero restarts. Real hardware doesn't need this.
+    AlertmanagerClusterCrashlooping: true

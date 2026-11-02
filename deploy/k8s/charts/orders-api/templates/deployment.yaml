@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    {{- include "orders-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "orders-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "orders-api.labels" . | nindent 8 }}
+    spec:
+      securityContext:
+        # The image already runs as uid 10001; this makes the cluster refuse
+        # to start it if that ever changes.
+        runAsNonRoot: true
+      containers:
+        - name: orders-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: POSTGRES_HOST
+              value: {{ .Values.database.host | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.database.name | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.database.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.passwordSecret }}
+                  key: POSTGRES_PASSWORD
+            - name: FIREBREAK_CHAOS_ENABLED
+              value: {{ .Values.chaos.enabled | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: orders-api
+            - name: OTEL_SDK_DISABLED
+              value: {{ not .Values.otel.enabled | quote }}
+          # Liveness: is the process alive? /healthz never touches the
+          # database, so a database outage can't make Kubernetes restart
+          # healthy pods in a loop.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          # Readiness: can it serve? /readyz answers 503 without the
+          # database. Two misses five seconds apart take the pod out of the
+          # Service after ~10 s: long enough to ride out a blip, short enough
+          # that users don't wait on a pod that can only fail.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

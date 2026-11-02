@@ -1,0 +1,8 @@
+apiVersion: v2
+name: orders-api
+description: The Firebreak test bed, a small orders API that can be told to fail.
+type: application
+# The chart's own version; bump it when the templates change.
+version: 0.1.0
+# The image tag used when values don't override it: the release from phase 9.
+appVersion: "0.9.0"
