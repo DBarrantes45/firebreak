@@ -3,7 +3,6 @@
   "packages": {
     ".": {
       "release-type": "simple",
-      "release-as": "1.0.0",
       "package-name": "firebreak",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
