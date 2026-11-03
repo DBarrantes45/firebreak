@@ -26,3 +26,10 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
+
+  # Editing a script from Windows drops its executable bit; this catches it
+  # before a fresh clone hits "Permission denied".
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-shebang-scripts-are-executable
