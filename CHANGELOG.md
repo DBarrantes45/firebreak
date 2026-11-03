@@ -3,6 +3,16 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.0.0](https://github.com/DBarrantes45/firebreak/compare/v0.10.1...v1.0.0) (2026-11-03)
+
+
+### Added
+
+* backup and restore scripts, drill-tested with a 30-second RTO ([#32](https://github.com/DBarrantes45/firebreak/issues/32)) ([a1a6a3a](https://github.com/DBarrantes45/firebreak/commit/a1a6a3a84a1a5e972753871114fd89ee28ddd75a))
+* data retention and a memory limit for every service ([#30](https://github.com/DBarrantes45/firebreak/issues/30)) ([6a366f2](https://github.com/DBarrantes45/firebreak/commit/6a366f2f804a147696a84665c6a74058f5739d44))
+* monitor any service by dropping a file in targets/ ([#33](https://github.com/DBarrantes45/firebreak/issues/33)) ([132a1bb](https://github.com/DBarrantes45/firebreak/commit/132a1bbe48cabf2ce1cd2a0574b15ce028cfa8ff))
+* secure defaults with random passwords and chaos off ([#29](https://github.com/DBarrantes45/firebreak/issues/29)) ([5bde862](https://github.com/DBarrantes45/firebreak/commit/5bde862dfab090ff3b7e70145b02e90b80de3161))
+
 ## [0.10.1](https://github.com/DBarrantes45/firebreak/compare/v0.10.0...v0.10.1) (2026-11-03)
 
 
