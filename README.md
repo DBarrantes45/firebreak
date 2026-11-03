@@ -18,7 +18,8 @@ its runbook link:
 
 ## Quick start
 
-You need Docker with Compose v2 and about 4 GB of free memory.
+You need Docker with Compose v2, about 4 GB of free memory, and `git`, `bash`,
+`curl` and `openssl`. Game days and the test scripts also use `python3`.
 
 ```bash
 git clone https://github.com/DBarrantes45/firebreak.git && cd firebreak

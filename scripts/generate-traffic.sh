@@ -5,6 +5,9 @@
 
 set -u
 
+# Without curl every request "fails" silently and the loop looks healthy.
+command -v curl > /dev/null || { echo "generate-traffic.sh needs curl"; exit 1; }
+
 API_URL="http://localhost:8000"
 REQUESTS_PER_SECOND="${1:-5}"
 PAUSE_SECONDS=$(awk "BEGIN { print 1 / $REQUESTS_PER_SECOND }")
