@@ -22,6 +22,16 @@ limits_config:
   # OTLP logs carry trace_id and friends as structured metadata; Loki rejects
   # them without this (default since 3.0, kept explicit on purpose).
   allow_structured_metadata: true
+  # Loki keeps logs forever unless told otherwise. Two weeks covers looking
+  # back at an incident; changing it later doesn't touch logs already stored.
+  retention_period: 336h
+
+# The compactor is what actually deletes expired logs (it needs the 24h index
+# period set below).
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem
 
 schema_config:
   configs:

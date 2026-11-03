@@ -22,5 +22,12 @@ storage:
     local:
       path: /var/tempo/blocks
 
+# Traces are the heaviest signal: ~195 MB stored already under the 14-day
+# default. A week is enough to debug recent requests. Tempo 3 moved this from
+# compactor.compaction to backend_worker; the old path fails at startup.
+backend_worker:
+  compaction:
+    block_retention: 168h
+
 usage_report:
   reporting_enabled: false

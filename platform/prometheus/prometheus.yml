@@ -30,3 +30,10 @@ storage:
   tsdb:
     # Pushed samples can arrive late; without this window they are dropped.
     out_of_order_time_window: 30m
+    # Measured at ~65 samples/s (~900 series): about 250 MB for 30 days. The
+    # size cap is for the homelab, where more targets could fill a disk long
+    # before 30 days; whichever limit hits first wins. Here, not in the
+    # deprecated --storage.tsdb.retention.* flags, so a reload applies it.
+    retention:
+      time: 30d
+      size: 2GB
