@@ -105,6 +105,7 @@ shows.
 - [Architecture](docs/architecture.md): the moving parts and how data flows between them.
 - [Run it locally](docs/how-to/run-locally.md): start, stop, reset.
 - [Run it on Kubernetes](docs/how-to/run-on-kubernetes.md): kind, the Helm chart and kube-prometheus-stack.
+- [Back up and restore](docs/how-to/backup-and-restore.md): two scripts, restore drill-tested at 30 s.
 - [Endpoints and ports](docs/reference/endpoints-and-ports.md): every URL in one table.
 - [SLOs](slos/README.md) and the [error budget policy](docs/error-budget-policy.md).
 - [Runbooks](runbooks/): what to do when each alert fires.
