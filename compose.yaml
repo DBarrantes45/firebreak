@@ -69,6 +69,11 @@ services:
 
   prometheus:
     image: prom/prometheus:v3.15.1
+    deploy:
+      resources:
+        limits:
+          # 75 MB now, 145 MB peak in 24 h
+          memory: 512M
     # Setting "command" drops the image defaults, so the first two are repeated.
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -90,6 +95,11 @@ services:
 
   alertmanager:
     image: prom/alertmanager:v0.34.2
+    deploy:
+      resources:
+        limits:
+          # 14 MB measured
+          memory: 128M
     volumes:
       - ./platform/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - ./platform/alertmanager/templates:/etc/alertmanager/templates:ro
@@ -106,6 +116,11 @@ services:
   # Only starts with --profile loadtest; see scripts/loadtest.sh.
   k6:
     image: grafana/k6:2.3.0
+    deploy:
+      resources:
+        limits:
+          # only runs for load tests
+          memory: 512M
     profiles: [loadtest]
     volumes:
       - ./loadtests:/scripts:ro
@@ -116,6 +131,11 @@ services:
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.164.0
+    deploy:
+      resources:
+        limits:
+          # 39 MB measured
+          memory: 256M
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./platform/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
@@ -125,6 +145,11 @@ services:
 
   loki:
     image: grafana/loki:3.7.9
+    deploy:
+      resources:
+        limits:
+          # 79 MB measured; a wide query can spike
+          memory: 384M
     command: ["-config.file=/etc/loki/config.yaml"]
     volumes:
       - ./platform/loki/config.yaml:/etc/loki/config.yaml:ro
@@ -134,6 +159,11 @@ services:
 
   tempo:
     image: grafana/tempo:3.1.1
+    deploy:
+      resources:
+        limits:
+          # 32 MB measured; compaction spikes
+          memory: 384M
     command: ["-target=all", "-config.file=/etc/tempo.yaml"]
     volumes:
       - ./platform/tempo/tempo.yaml:/etc/tempo.yaml:ro
@@ -143,6 +173,11 @@ services:
 
   grafana:
     image: grafana/grafana:13.3.0
+    deploy:
+      resources:
+        limits:
+          # 254 MB measured
+          memory: 512M
     environment:
       GF_SECURITY_ADMIN_USER: admin
       # Required, so Grafana never starts with the default admin/admin.
@@ -170,6 +205,9 @@ services:
     # No ports: only n8n talks to it, over the Compose network.
     deploy:
       resources:
+        # The model lives in VRAM; this caps the RAM side (634 MB measured).
+        limits:
+          memory: 2G
         reservations:
           devices:
             - driver: nvidia
@@ -178,6 +216,11 @@ services:
 
   n8n:
     image: n8nio/n8n:2.45.7
+    deploy:
+      resources:
+        limits:
+          # 461 MB measured
+          memory: 1G
     profiles: [automation]
     environment:
       GENERIC_TIMEZONE: America/Costa_Rica
@@ -204,6 +247,11 @@ services:
   # network shared with n8n alone. Never publish its port.
   docker-proxy:
     image: tecnativa/docker-socket-proxy:v0.5.0
+    deploy:
+      resources:
+        limits:
+          # 37 MB measured
+          memory: 128M
     profiles: [automation]
     # Required by the image to open the socket under AppArmor/SELinux.
     privileged: true
