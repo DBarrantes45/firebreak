@@ -1,3 +1,8 @@
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import main
 import pytest
 
@@ -27,6 +32,32 @@ def test_readiness_fail_leaves_liveness_alone(client):
     assert client.get("/readyz").status_code == 503
     assert client.get("/healthz").status_code == 200
     client.post("/admin/chaos", json={})
+
+
+def test_chaos_endpoint_does_not_exist_when_disabled():
+    # main.py reads the switch at import time, so this needs a fresh process
+    # with it unset. 404, not 403: a scanner shouldn't learn the route exists.
+    script = (
+        "from fastapi.testclient import TestClient\n"
+        "import main\n"
+        "client = TestClient(main.app)\n"
+        "print(client.get('/admin/chaos').status_code, "
+        "client.post('/admin/chaos', json={'error_rate': 1}).status_code)\n"
+    )
+    env = {k: v for k, v in os.environ.items() if k != "FIREBREAK_CHAOS_ENABLED"}
+    env["PYTHONPATH"] = str(Path(main.__file__).parent)
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.stdout.split() == ["404", "404"], result.stderr
+
+
+def test_chaos_endpoint_exists_when_enabled(client):
+    assert client.get("/admin/chaos").status_code == 200
 
 
 def test_chaos_rejects_rate_out_of_range(client):
