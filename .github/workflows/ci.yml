@@ -60,8 +60,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      # CI has no .env.
-      - run: cp .env.example .env
+      # CI has no .env; create it the way a new user would.
+      - run: scripts/init-env.sh
       - name: Validate compose.yaml, including the automation profile
         run: |
           docker compose config --quiet
@@ -195,7 +195,7 @@ jobs:
           name: api-image
           path: ${{ runner.temp }}
       - run: docker load --input "${{ runner.temp }}/api-image.tar"
-      - run: cp .env.example .env
+      - run: scripts/init-env.sh
       - name: Start the stack with the built image and wait for every healthcheck
         run: docker compose up -d --no-build --wait --wait-timeout 180
       - name: Run the smoke test

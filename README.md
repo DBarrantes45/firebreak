@@ -39,7 +39,7 @@ restarted. The [changelog](CHANGELOG.md) tracks what has landed so far.
 You need Docker with Compose v2.
 
 ```bash
-cp .env.example .env    # set real passwords
+scripts/init-env.sh     # .env with random passwords
 docker compose up -d --build --wait
 scripts/generate-traffic.sh 5
 ```

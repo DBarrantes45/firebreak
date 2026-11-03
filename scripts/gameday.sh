@@ -63,6 +63,11 @@ case "$id" in
     *) echo "Unknown game day: $id"; exit 2 ;;
 esac
 
+if [ "$(curl -s -o /dev/null -w '%{http_code}' localhost:8000/admin/chaos)" = 404 ]; then
+    echo "Chaos is off. Set FIREBREAK_CHAOS_ENABLED=true in .env, then: docker compose up -d --wait api"
+    exit 1
+fi
+
 alert_fired() {
     curl -fsS localhost:9093/api/v2/alerts | python3 -c '
 import json, sys
