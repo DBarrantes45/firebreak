@@ -3,6 +3,13 @@
 All notable changes to this project are listed here.
 Versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.10.1](https://github.com/DBarrantes45/firebreak/compare/v0.10.0...v0.10.1) (2026-11-03)
+
+
+### Fixed
+
+* **chart:** keep appVersion in step with each release ([#25](https://github.com/DBarrantes45/firebreak/issues/25)) ([267edea](https://github.com/DBarrantes45/firebreak/commit/267edea97d0efe2a618aa6cdeaf96ef9edb2c606))
+
 ## [0.10.0](https://github.com/DBarrantes45/firebreak/compare/v0.9.0...v0.10.0) (2026-11-02)
 
 
