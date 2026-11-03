@@ -91,7 +91,8 @@ jobs:
           docker run --rm --entrypoint promtool \
             -v "$PWD/platform/prometheus:/etc/prometheus:ro" \
             prom/prometheus:v3.15.1 check rules \
-            /etc/prometheus/rules/slo-orders-api.yml /etc/prometheus/rules/orders-api.yml
+            /etc/prometheus/rules/slo-orders-api.yml /etc/prometheus/rules/orders-api.yml \
+            /etc/prometheus/rules/services.yml
       - name: Unit tests for the alerting rules
         run: |
           docker run --rm --entrypoint promtool \

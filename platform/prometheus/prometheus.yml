@@ -20,6 +20,21 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
+  # The extension point: every file in targets/ adds services to scrape, and
+  # Prometheus picks up new or edited files without a restart. See
+  # docs/monitor-your-own-service.md.
+  - job_name: services
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/*.yml"]
+    relabel_configs:
+      # Each service becomes its own job, so up{job="<service>"} and the
+      # dashboards read naturally.
+      - source_labels: [service]
+        target_label: job
+      # Marks where the target came from, for the ServiceDown alert.
+      - target_label: discovered_from
+        replacement: targets
+
 # Metrics pushed over OTLP by the Collector (needs --web.enable-otlp-receiver).
 otlp:
   promote_resource_attributes:

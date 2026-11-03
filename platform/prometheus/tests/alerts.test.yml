@@ -3,10 +3,34 @@
 rule_files:
   - ../rules/orders-api.yml
   - ../rules/slo-orders-api.yml
+  - ../rules/services.yml
 
 evaluation_interval: 1m
 
 tests:
+  - name: ServiceDown tickets any service from targets/ after two minutes
+    interval: 15s
+    input_series:
+      - series: 'up{job="my-service", service="my-service", instance="my-service:8080", discovered_from="targets"}'
+        values: '1x4 0x12'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: ServiceDown
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: ServiceDown
+        exp_alerts:
+          - exp_labels:
+              alertname: ServiceDown
+              job: my-service
+              service: my-service
+              instance: my-service:8080
+              discovered_from: targets
+              severity: ticket
+            exp_annotations:
+              summary: "Prometheus cannot scrape my-service at my-service:8080."
+              runbook_url: "https://github.com/DBarrantes45/firebreak/blob/main/docs/monitor-your-own-service.md"
+
   - name: OrdersApiDown waits one minute before paging
     interval: 15s
     input_series:

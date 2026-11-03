@@ -1,0 +1,14 @@
+# Firebreak watching its own platform, added the same way you'd add any
+# service (docs/monitor-your-own-service.md).
+- targets: ["alertmanager:9093"]
+  labels:
+    service: alertmanager
+- targets: ["grafana:3000"]
+  labels:
+    service: grafana
+- targets: ["loki:3100"]
+  labels:
+    service: loki
+- targets: ["tempo:3200"]
+  labels:
+    service: tempo

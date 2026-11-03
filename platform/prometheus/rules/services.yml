@@ -1,0 +1,13 @@
+groups:
+  - name: services
+    rules:
+      # Anything added through targets/ gets this for free: no rule to write
+      # just to know a service stopped answering.
+      - alert: ServiceDown
+        expr: up{discovered_from="targets"} == 0
+        for: 2m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "Prometheus cannot scrape {{ $labels.service }} at {{ $labels.instance }}."
+          runbook_url: "https://github.com/DBarrantes45/firebreak/blob/main/docs/monitor-your-own-service.md"
