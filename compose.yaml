@@ -215,7 +215,7 @@ services:
               capabilities: [gpu]
 
   n8n:
-    image: n8nio/n8n:2.45.7
+    image: n8nio/n8n:2.46.6
     deploy:
       resources:
         limits:
