@@ -130,7 +130,7 @@ services:
       - api
 
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.164.0
+    image: otel/opentelemetry-collector-contrib:0.164.0-386
     deploy:
       resources:
         limits:
