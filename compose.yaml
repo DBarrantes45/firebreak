@@ -144,7 +144,7 @@ services:
       - loki
 
   loki:
-    image: grafana/loki:3.7.9
+    image: grafana/loki:3.7.10
     deploy:
       resources:
         limits:
